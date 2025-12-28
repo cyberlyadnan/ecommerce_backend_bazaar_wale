@@ -21,11 +21,11 @@ export const getOrCreateCart = async (userId: string) => {
   let cart = await Cart.findOne({ userId: new mongoose.Types.ObjectId(userId) }).lean();
 
   if (!cart) {
-    cart = await Cart.create({
+    const newCart = await Cart.create({
       userId: new mongoose.Types.ObjectId(userId),
       items: [],
     });
-    return cart.toObject();
+    return newCart.toObject();
   }
 
   return {
@@ -193,8 +193,9 @@ export const removeFromCart = async (userId: string, productId: string) => {
     throw new ApiError(404, 'Cart not found');
   }
 
-  cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
+  cart.items = cart.items.filter((item) => item.productId.toString() !== productId) as typeof cart.items;
   cart.updatedAt = new Date();
+  cart.markModified('items');
   await cart.save();
 
   return getCart(userId);
@@ -209,8 +210,9 @@ export const clearCart = async (userId: string) => {
     return null;
   }
 
-  cart.items = [];
+  cart.items.length = 0;
   cart.updatedAt = new Date();
+  cart.markModified('items');
   await cart.save();
 
   return getCart(userId);

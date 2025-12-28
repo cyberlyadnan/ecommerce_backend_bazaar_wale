@@ -208,13 +208,15 @@ export const updateProduct = async (productId: string, input: ProductUpdateInput
     product.tags = tags.length > 0 ? tags : [];
   }
   if (input.attributes) {
-    product.attributes = input.attributes;
+    product.attributes = new Map(Object.entries(input.attributes));
   }
   if (input.images) {
-    product.images = normaliseImages(input.images);
+    product.images = normaliseImages(input.images) as typeof product.images;
+    product.markModified('images');
   }
   if (input.pricingTiers) {
-    product.pricingTiers = normalisePricing(input.pricingTiers);
+    product.pricingTiers = normalisePricing(input.pricingTiers) as typeof product.pricingTiers;
+    product.markModified('pricingTiers');
   }
   if (typeof input.meta !== 'undefined') {
     product.meta = input.meta;

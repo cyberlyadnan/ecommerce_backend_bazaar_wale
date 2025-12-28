@@ -73,7 +73,8 @@ BlogSchema.pre('save', function setTagsText(next) {
 });
 
 BlogSchema.pre('findOneAndUpdate', function setTagsText(next) {
-  const update: Record<string, unknown> | undefined = this.getUpdate();
+  const updateRaw = this.getUpdate();
+  const update: Record<string, unknown> | undefined = updateRaw && typeof updateRaw === 'object' && !Array.isArray(updateRaw) ? updateRaw as Record<string, unknown> : undefined;
   if (update) {
     const tags =
       (update.tags as string[] | undefined) ??

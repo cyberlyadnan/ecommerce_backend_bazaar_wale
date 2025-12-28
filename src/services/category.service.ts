@@ -1,4 +1,4 @@
-import { FilterQuery, LeanDocument } from 'mongoose';
+import mongoose, { FilterQuery } from 'mongoose';
 
 import Category from '../models/Category.model';
 import ApiError from '../utils/apiError';
@@ -97,7 +97,7 @@ export const updateCategory = async (categoryId: string, input: Partial<Category
 
   if (typeof input.parent !== 'undefined') {
     if (input.parent === null || input.parent === '') {
-      category.parent = null;
+      (category as any).parent = null;
     } else {
       if (categoryId === input.parent) {
         throw new ApiError(400, 'Category cannot be its own parent');
@@ -157,18 +157,16 @@ export const listCategories = async () => {
       ...category,
       _id: category._id.toString(),
       parent: category.parent ? category.parent.toString() : null,
-    })) as Array<
-      LeanDocument<{
-        _id: string;
-        name: string;
-        slug: string;
-        parent: string | null;
-        description?: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-      }>
-    >,
+    })) as Array<{
+      _id: string;
+      name: string;
+      slug: string;
+      parent: string | null;
+      description?: string;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>,
     tree: roots,
   };
 };

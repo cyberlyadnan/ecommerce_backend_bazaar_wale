@@ -9,9 +9,20 @@ const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const mongo_sanitize_1 = __importDefault(require("mongo-sanitize"));
 const morgan_1 = __importDefault(require("morgan"));
+const path_1 = __importDefault(require("path"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const config_1 = __importDefault(require("./config"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const cart_routes_1 = __importDefault(require("./routes/cart.routes"));
+const catalog_routes_1 = __importDefault(require("./routes/catalog.routes"));
+const contact_routes_1 = __importDefault(require("./routes/contact.routes"));
+const file_routes_1 = __importDefault(require("./routes/file.routes"));
+const orders_routes_1 = __importDefault(require("./routes/orders.routes"));
+const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
+const reviews_routes_1 = __importDefault(require("./routes/reviews.routes"));
+const vendorDashboard_routes_1 = __importDefault(require("./routes/vendorDashboard.routes"));
+const blog_routes_1 = __importDefault(require("./routes/blog.routes"));
+const adminBlog_routes_1 = __importDefault(require("./routes/adminBlog.routes"));
 const error_middleware_1 = __importDefault(require("./middlewares/error.middleware"));
 const app = (0, express_1.default)();
 const corsOptions = {
@@ -38,10 +49,15 @@ app.use((_req, _res, next) => {
     }
     next();
 });
+// Global rate limit - more lenient for development
 app.use((0, express_rate_limit_1.default)({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500, // Increased from 200 to 500 requests per 15 minutes
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
 }));
+app.use('/uploads', express_1.default.static(path_1.default.resolve(process.cwd(), 'uploads')));
 app.get('/', (_req, res) => {
     res.json({
         status: 'ok',
@@ -53,5 +69,15 @@ app.get('/health', (_req, res) => {
     res.json({ status: 'ok', env: config_1.default.app.env });
 });
 app.use('/api/auth', auth_routes_1.default);
+app.use('/api/cart', cart_routes_1.default);
+app.use('/api/catalog', catalog_routes_1.default);
+app.use('/api/contact', contact_routes_1.default);
+app.use('/api/files', file_routes_1.default);
+app.use('/api/orders', orders_routes_1.default);
+app.use('/api/payments', payments_routes_1.default);
+app.use('/api/reviews', reviews_routes_1.default);
+app.use('/api/vendor/dashboard', vendorDashboard_routes_1.default);
+app.use('/api/blog', blog_routes_1.default);
+app.use('/api/admin/blogs', adminBlog_routes_1.default);
 app.use(error_middleware_1.default);
 exports.default = app;

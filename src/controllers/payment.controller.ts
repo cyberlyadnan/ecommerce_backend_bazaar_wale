@@ -20,7 +20,7 @@ export const updateCommissionHandler = async (req: Request, res: Response, next:
   try {
     if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin access required');
     const errors = validationResult(req);
-    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed', errors.array());
+    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed');
 
     const commissionPercent = Number(req.body.commissionPercent);
     const updated = await setCommissionPercent(commissionPercent, req.user._id.toString());
@@ -54,7 +54,7 @@ export const adminCreatePayoutHandler = async (req: Request, res: Response, next
   try {
     if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin access required');
     const errors = validationResult(req);
-    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed', errors.array());
+    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed');
 
     const payout = await payoutService.adminCreatePayout(req.body, req.user._id.toString());
     res.json({ success: true, payout, message: 'Payout created' });
@@ -67,7 +67,7 @@ export const adminUpdatePayoutHandler = async (req: Request, res: Response, next
   try {
     if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin access required');
     const errors = validationResult(req);
-    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed', errors.array());
+    if (!errors.isEmpty()) throw new ApiError(400, 'Validation failed');
 
     const { payoutId } = req.params;
     const payout = await payoutService.adminUpdatePayout(payoutId, req.body, req.user._id.toString());

@@ -92,7 +92,11 @@ export const calculateOrderTotals = async (
     subtotal += itemTotal;
 
     items.push({
-      productId: new mongoose.Types.ObjectId(cartItem.productId._id || cartItem.productId),
+      productId: new mongoose.Types.ObjectId(
+        (typeof cartItem.productId === 'object' && cartItem.productId && '_id' in cartItem.productId)
+          ? (cartItem.productId._id as mongoose.Types.ObjectId).toString()
+          : cartItem.productId.toString()
+      ),
       title: cartItem.title,
       sku: product.sku,
       vendorId: new mongoose.Types.ObjectId(cartItem.vendorId),

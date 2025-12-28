@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 
 import config from '../config';
 import User, { UserDocument, UserRole } from '../models/User.model';
@@ -16,6 +17,7 @@ declare module 'express-serve-static-core' {
   interface Request {
     user?: UserDocument;
     tokenPayload?: JwtPayload;
+    file?: Express.Multer.File;
   }
 }
 

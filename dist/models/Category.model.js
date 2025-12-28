@@ -10,6 +10,7 @@ const CategorySchema = new mongoose_1.default.Schema({
     slug: { type: String, required: true, unique: true },
     parent: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'Category', default: null }, // for subcategories
     description: { type: String },
+    image: { type: String }, // URL to category image
     isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 exports.default = mongoose_1.default.model('Category', CategorySchema);

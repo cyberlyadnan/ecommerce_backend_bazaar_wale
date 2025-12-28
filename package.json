@@ -39,6 +39,7 @@
     "@types/express-rate-limit": "^5.1.3",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.7.4",
     "@types/nodemailer": "^6.4.15",
     "@types/validator": "^13.11.10",

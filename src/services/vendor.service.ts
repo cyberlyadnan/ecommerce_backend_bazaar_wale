@@ -80,7 +80,7 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
   });
 };
 
-export const approveVendorByAdmin = async (vendorId: string) => {
+export const approveVendorByAdmin = async (vendorId: string, adminId: string) => {
   if (!mongoose.Types.ObjectId.isValid(vendorId)) {
     throw new ApiError(400, 'Invalid vendor identifier');
   }
@@ -95,7 +95,7 @@ export const approveVendorByAdmin = async (vendorId: string) => {
     return vendor;
   }
 
-  await approveVendor(vendorId);
+  await approveVendor(vendorId, adminId);
   return User.findById(vendorId)
     .select(
       'name email phone businessName gstNumber vendorStatus createdAt updatedAt businessAddress meta documents',
@@ -103,7 +103,7 @@ export const approveVendorByAdmin = async (vendorId: string) => {
     .lean();
 };
 
-export const rejectVendorByAdmin = async (vendorId: string, reason?: string) => {
+export const rejectVendorByAdmin = async (vendorId: string, adminId: string, reason?: string) => {
   if (!mongoose.Types.ObjectId.isValid(vendorId)) {
     throw new ApiError(400, 'Invalid vendor identifier');
   }
@@ -118,7 +118,7 @@ export const rejectVendorByAdmin = async (vendorId: string, reason?: string) => 
     return vendor;
   }
 
-  await rejectVendor(vendorId, reason);
+  await rejectVendor(vendorId, adminId, reason);
   return User.findById(vendorId)
     .select(
       'name email phone businessName gstNumber vendorStatus createdAt updatedAt businessAddress meta documents',

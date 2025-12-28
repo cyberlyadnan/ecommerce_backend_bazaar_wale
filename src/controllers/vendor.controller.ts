@@ -31,7 +31,10 @@ export const listVendorsHandler = async (req: Request, res: Response, next: Next
 
 export const approveVendorHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const vendor = await approveVendorByAdmin(req.params.vendorId);
+    if (!req.user) {
+      throw new Error('Authentication required');
+    }
+    const vendor = await approveVendorByAdmin(req.params.vendorId, req.user._id.toString());
     res.json({ vendor });
   } catch (error) {
     next(error);
@@ -40,7 +43,10 @@ export const approveVendorHandler = async (req: Request, res: Response, next: Ne
 
 export const rejectVendorHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const vendor = await rejectVendorByAdmin(req.params.vendorId, req.body.reason);
+    if (!req.user) {
+      throw new Error('Authentication required');
+    }
+    const vendor = await rejectVendorByAdmin(req.params.vendorId, req.user._id.toString(), req.body.reason);
     res.json({ vendor });
   } catch (error) {
     next(error);

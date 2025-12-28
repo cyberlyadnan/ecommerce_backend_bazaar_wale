@@ -81,7 +81,10 @@ export const updateReview = async (
   if (data.rating !== undefined) review.rating = data.rating;
   if (data.title !== undefined) review.title = data.title?.trim();
   if (data.comment !== undefined) review.comment = data.comment?.trim();
-  if (data.images !== undefined) review.images = data.images;
+  if (data.images !== undefined) {
+    review.images = data.images as typeof review.images;
+    review.markModified('images');
+  }
 
   await review.save();
 

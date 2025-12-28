@@ -47,7 +47,7 @@ export const createOrderHandler = async (
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      throw new ApiError(400, 'Validation failed');
     }
 
     const { shippingAddress } = req.body;
@@ -96,7 +96,7 @@ export const verifyPaymentHandler = async (
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      throw new ApiError(400, 'Validation failed');
     }
 
     const { orderId } = req.params;
@@ -397,7 +397,7 @@ export const updateOrderStatusHandler = async (
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      throw new ApiError(400, 'Validation failed');
     }
 
     const { orderId } = req.params;
@@ -458,7 +458,7 @@ export const updateExpectedDeliveryDateHandler = async (
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      throw new ApiError(400, 'Validation failed');
     }
 
     const { orderId } = req.params;

@@ -16,6 +16,7 @@ const VendorVerificationSchema = new mongoose_1.Schema({
     businessName: { type: String },
     gstNumber: { type: String },
     aadharNumber: { type: String },
+    panNumber: { type: String },
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],

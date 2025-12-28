@@ -3,16 +3,35 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyUniqueIdentifiers = exports.serializeUser = exports.rejectVendor = exports.approveVendor = exports.changePassword = exports.resetPassword = exports.requestPasswordReset = exports.logout = exports.refreshAuthTokens = exports.resetPasswordWithFirebase = exports.registerWithFirebase = exports.loginWithFirebase = exports.loginWithPassword = exports.registerAdmin = exports.registerVendor = exports.registerCustomer = void 0;
+exports.verifyUniqueIdentifiers = exports.serializeUser = exports.rejectVendor = exports.approveVendor = exports.changePassword = exports.resetPassword = exports.requestPasswordReset = exports.logout = exports.refreshAuthTokens = exports.resetPasswordWithFirebase = exports.registerWithFirebase = exports.loginWithFirebase = exports.loginWithPassword = exports.registerAdmin = exports.registerVendor = exports.registerCustomer = exports.getVendorApplicationStatus = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const dayjs_1 = __importDefault(require("dayjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = __importDefault(require("../config"));
+const logger_1 = __importDefault(require("../config/logger"));
 const Session_model_1 = __importDefault(require("../models/Session.model"));
 const PasswordResetToken_model_1 = __importDefault(require("../models/PasswordResetToken.model"));
 const User_model_1 = __importDefault(require("../models/User.model"));
 const VendorVerification_model_1 = __importDefault(require("../models/VendorVerification.model"));
+const getVendorApplicationStatus = async (userId) => {
+    const verification = await VendorVerification_model_1.default.findOne({ userId })
+        .select('status submittedAt reviewedAt adminNotes businessName gstNumber')
+        .sort({ submittedAt: -1 })
+        .lean();
+    if (!verification) {
+        return null;
+    }
+    return {
+        status: verification.status,
+        submittedAt: verification.submittedAt,
+        reviewedAt: verification.reviewedAt,
+        adminNotes: verification.adminNotes,
+        businessName: verification.businessName,
+        gstNumber: verification.gstNumber,
+    };
+};
+exports.getVendorApplicationStatus = getVendorApplicationStatus;
 const apiError_1 = __importDefault(require("../utils/apiError"));
 const email_1 = require("../utils/email");
 const firebase_service_1 = require("./firebase.service");
@@ -98,28 +117,93 @@ const registerCustomer = async (input) => {
     return user;
 };
 exports.registerCustomer = registerCustomer;
-const registerVendor = async (input) => {
-    const { businessName, gstNumber, aadharNumber, documents, password, ...rest } = input;
-    const user = await (0, exports.registerCustomer)({
-        ...rest,
-    });
-    user.role = 'vendor';
-    user.businessName = businessName;
-    if (gstNumber)
-        user.gstNumber = gstNumber;
-    if (aadharNumber)
-        user.aadharNumber = aadharNumber;
-    user.vendorStatus = 'pending';
-    if (password) {
-        user.passwordHash = await bcryptjs_1.default.hash(password, SALT_ROUNDS);
+const registerVendor = async (input, existingUserId) => {
+    const { businessName, gstNumber, aadharNumber, panNumber, documents, password, ...rest } = input;
+    const docList = Array.isArray(documents) ? documents : [];
+    const aadhaarFront = docList.find((d) => d?.type === 'aadhaarFront' && d?.url);
+    const aadhaarBack = docList.find((d) => d?.type === 'aadhaarBack' && d?.url);
+    const gstCertDoc = docList.find((d) => d?.type === 'gstCertificate' && d?.url);
+    const panCardDoc = docList.find((d) => d?.type === 'panCard' && d?.url);
+    if (!gstNumber || !gstNumber.trim()) {
+        throw new apiError_1.default(400, 'GST number is required for vendor registration');
     }
-    await user.save();
+    if (!aadharNumber || !aadharNumber.trim()) {
+        throw new apiError_1.default(400, 'Aadhaar number is required for vendor registration');
+    }
+    if (!panNumber || !panNumber.trim()) {
+        throw new apiError_1.default(400, 'PAN number is required for vendor registration');
+    }
+    if (!aadhaarFront || !aadhaarBack || !gstCertDoc || !panCardDoc) {
+        throw new apiError_1.default(400, 'Aadhaar front, Aadhaar back, GST certificate, and PAN card are required for vendor verification');
+    }
+    let user;
+    // If existingUserId is provided, use existing user
+    if (existingUserId) {
+        const foundUser = await User_model_1.default.findById(existingUserId);
+        if (!foundUser || foundUser.isDeleted) {
+            throw new apiError_1.default(404, 'User not found');
+        }
+        user = foundUser;
+        // Check if user is already a vendor or admin
+        if (user.role === 'vendor' || user.role === 'admin') {
+            throw new apiError_1.default(400, 'User is already a vendor or admin');
+        }
+        // Check if user already has a pending vendor request
+        const existingRequest = await VendorVerification_model_1.default.findOne({
+            userId: user._id,
+            status: 'pending',
+        });
+        if (existingRequest) {
+            throw new apiError_1.default(400, 'You already have a pending vendor application');
+        }
+        // Update user with vendor information (use existing user's name/email/phone if not provided)
+        user.businessName = businessName;
+        user.gstNumber = gstNumber;
+        user.aadharNumber = aadharNumber;
+        user.panNumber = panNumber;
+        user.vendorStatus = 'pending';
+        // Update name/email/phone only if provided in the request
+        if (rest.name)
+            user.name = rest.name;
+        if (rest.email)
+            user.email = rest.email;
+        if (rest.phone)
+            user.phone = rest.phone;
+        // Don't change role yet - it will be changed when admin approves
+        await user.save();
+    }
+    else {
+        // Create new user - password is required when creating a new account
+        // Only require password if we're actually creating a new user (not using existing account)
+        if (!password || (typeof password === 'string' && password.trim().length < 6)) {
+            throw new apiError_1.default(400, 'Password is required and must be at least 6 characters long when creating a new account');
+        }
+        const newUser = await (0, exports.registerCustomer)({
+            ...rest,
+        });
+        newUser.role = 'vendor';
+        newUser.businessName = businessName;
+        newUser.gstNumber = gstNumber;
+        newUser.aadharNumber = aadharNumber;
+        newUser.panNumber = panNumber;
+        newUser.vendorStatus = 'pending';
+        newUser.passwordHash = await bcryptjs_1.default.hash(password, SALT_ROUNDS);
+        await newUser.save();
+        user = newUser;
+    }
+    // Create vendor verification request
     await VendorVerification_model_1.default.create({
         userId: user._id,
         businessName,
         gstNumber,
         aadharNumber,
-        documents,
+        panNumber,
+        documents: [
+            { type: 'aadhaarFront', url: aadhaarFront.url, fileName: aadhaarFront.fileName },
+            { type: 'aadhaarBack', url: aadhaarBack.url, fileName: aadhaarBack.fileName },
+            { type: 'gstCertificate', url: gstCertDoc.url, fileName: gstCertDoc.fileName },
+            { type: 'panCard', url: panCardDoc.url, fileName: panCardDoc.fileName },
+        ],
     });
     if (user.email) {
         await (0, email_1.sendMail)({
@@ -196,52 +280,91 @@ const loginWithPassword = async ({ identifier, role, password, }, context) => {
 exports.loginWithPassword = loginWithPassword;
 const loginWithFirebase = async ({ firebaseToken, role = 'customer', name, email }, context) => {
     const decoded = await (0, firebase_service_1.verifyFirebaseIdToken)(firebaseToken);
-    const phoneNumber = decoded.phone_number;
+    // Google OAuth provides email, name, and picture
     const tokenEmail = decoded.email;
-    if (!phoneNumber && !tokenEmail && !email) {
-        throw new apiError_1.default(400, 'Firebase token does not contain phone number or email');
+    const tokenName = decoded.name;
+    const tokenPicture = decoded.picture;
+    const provider = decoded.firebase?.sign_in_provider || 'google.com';
+    const firebaseUid = decoded.uid;
+    // Require email for Google OAuth
+    if (!tokenEmail && !email) {
+        throw new apiError_1.default(400, 'Firebase token does not contain email. Google OAuth requires an email address.');
     }
-    const search = [];
-    if (phoneNumber)
-        search.push({ phone: phoneNumber });
-    if (tokenEmail)
-        search.push({ email: tokenEmail });
-    if (email)
-        search.push({ email });
-    let user = await User_model_1.default.findOne({ $or: search });
+    const finalEmail = email || tokenEmail;
+    const finalName = name || tokenName || 'User';
+    const isEmailVerified = Boolean(decoded.email_verified) || true; // Google emails are verified
+    // Search for existing user by email OR Firebase UID (in case email changed)
+    let user = await User_model_1.default.findOne({
+        $or: [
+            { email: finalEmail },
+            { 'meta.firebaseUid': firebaseUid },
+        ],
+        isDeleted: false,
+    });
     if (!user) {
+        // Create new user with Google OAuth data - sync all data to MongoDB
+        logger_1.default.info('Creating new user from Google OAuth', { email: finalEmail, name: finalName, firebaseUid });
         user = await User_model_1.default.create({
             role,
-            name: name || decoded.name || 'User',
-            email: email || tokenEmail,
-            phone: phoneNumber,
-            isPhoneVerified: Boolean(phoneNumber),
-            isEmailVerified: Boolean(decoded.email_verified) || Boolean(email),
+            name: finalName,
+            email: finalEmail,
+            isEmailVerified, // Google emails are verified
             meta: {
-                firebaseUid: decoded.uid,
-                firebaseProvider: decoded.firebase?.sign_in_provider,
+                firebaseUid,
+                firebaseProvider: provider,
+                picture: tokenPicture || null, // Store profile picture URL
+                lastGoogleSync: new Date().toISOString(), // Track when we last synced from Google
+                ...(decoded.email_verified !== undefined && { emailVerified: decoded.email_verified }),
             },
         });
+        logger_1.default.info('User created successfully in MongoDB', { userId: user._id, email: finalEmail });
     }
     else {
-        user.isPhoneVerified = user.isPhoneVerified || Boolean(phoneNumber);
-        user.isEmailVerified = user.isEmailVerified || Boolean(decoded.email_verified);
-        user.meta = {
-            ...user.meta,
-            firebaseUid: decoded.uid,
-            firebaseProvider: decoded.firebase?.sign_in_provider,
+        // Update existing user with latest Google OAuth data - sync to MongoDB
+        const updateData = {};
+        const metaUpdate = {
+            ...(user.meta || {}),
+            firebaseUid,
+            firebaseProvider: provider,
+            lastGoogleSync: new Date().toISOString(),
         };
-        if (name && user.name !== name) {
-            user.name = name;
+        // Update email verification status
+        if (!user.isEmailVerified && isEmailVerified) {
+            updateData.isEmailVerified = true;
         }
+        // Update name if provided and different (Google name takes precedence)
+        if (finalName && user.name !== finalName) {
+            updateData.name = finalName;
+        }
+        // Update email if different (shouldn't happen with Google, but handle it)
         if (email && user.email !== email) {
             await ensureIdentifiersAreFree(email, undefined, user.id);
-            user.email = email;
+            updateData.email = email;
         }
-        else if (!user.email && tokenEmail) {
-            user.email = tokenEmail;
+        else if (!user.email && finalEmail) {
+            // If user doesn't have email, set it
+            updateData.email = finalEmail;
         }
+        // Update profile picture if available
+        if (tokenPicture) {
+            metaUpdate.picture = tokenPicture;
+        }
+        // Store email verification status in meta
+        if (decoded.email_verified !== undefined) {
+            metaUpdate.emailVerified = decoded.email_verified;
+        }
+        // Apply updates
+        if (Object.keys(updateData).length > 0) {
+            Object.assign(user, updateData);
+        }
+        user.meta = metaUpdate;
         await user.save();
+        logger_1.default.info('User data synced from Google OAuth to MongoDB', {
+            userId: user._id,
+            email: finalEmail,
+            updates: Object.keys(updateData),
+            hasPicture: !!tokenPicture,
+        });
     }
     if (user.role === 'vendor' && user.vendorStatus !== 'active') {
         throw new apiError_1.default(403, `Vendor account is ${user.vendorStatus}. Please contact support.`);
@@ -279,22 +402,15 @@ const registerWithFirebase = async (input, context) => {
 exports.registerWithFirebase = registerWithFirebase;
 const resetPasswordWithFirebase = async ({ firebaseToken, newPassword, }) => {
     const decoded = await (0, firebase_service_1.verifyFirebaseIdToken)(firebaseToken);
-    const phoneNumber = decoded.phone_number;
     const email = decoded.email;
-    const search = [];
-    if (phoneNumber)
-        search.push({ phone: phoneNumber });
-    if (email)
-        search.push({ email });
-    if (search.length === 0) {
-        throw new apiError_1.default(400, 'Firebase token does not contain phone number or email');
+    if (!email) {
+        throw new apiError_1.default(400, 'Firebase token does not contain email');
     }
-    const user = await User_model_1.default.findOne({ $or: search, isDeleted: false });
+    const user = await User_model_1.default.findOne({ email, isDeleted: false });
     if (!user) {
         throw new apiError_1.default(404, 'User not found');
     }
     user.passwordHash = await bcryptjs_1.default.hash(newPassword, SALT_ROUNDS);
-    user.isPhoneVerified = user.isPhoneVerified || Boolean(phoneNumber);
     user.isEmailVerified = user.isEmailVerified || Boolean(decoded.email_verified);
     await user.save();
     await Session_model_1.default.deleteMany({ user: user._id });
@@ -416,6 +532,8 @@ const approveVendor = async (vendorId, adminId) => {
     if (!user) {
         throw new apiError_1.default(404, 'Vendor not found');
     }
+    // Update user role to vendor and set status to active
+    user.role = 'vendor';
     user.vendorStatus = 'active';
     await user.save();
     await VendorVerification_model_1.default.findOneAndUpdate({ userId: user._id }, { status: 'approved', reviewedBy: adminId, reviewedAt: new Date() });

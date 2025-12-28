@@ -7,9 +7,12 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const app_1 = __importDefault(require("./app"));
 const config_1 = __importDefault(require("./config"));
 const logger_1 = __importDefault(require("./config/logger"));
+const ensureIndexes_1 = require("./utils/ensureIndexes");
 const start = async () => {
     try {
         await mongoose_1.default.connect(config_1.default.mongo.uri);
+        await (0, ensureIndexes_1.ensureProductIndexes)();
+        await (0, ensureIndexes_1.ensureBlogIndexes)();
         logger_1.default.info('Connected to MongoDB');
         app_1.default.listen(config_1.default.app.port, () => {
             logger_1.default.info(`Server running on port ${config_1.default.app.port}`);

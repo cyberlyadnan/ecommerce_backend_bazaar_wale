@@ -25,6 +25,7 @@ const UserSchema = new mongoose_1.Schema({
     businessName: { type: String, index: true },
     gstNumber: { type: String },
     aadharNumber: { type: String },
+    panNumber: { type: String },
     businessAddress: { type: AddressSchema },
     vendorStatus: {
         type: String,

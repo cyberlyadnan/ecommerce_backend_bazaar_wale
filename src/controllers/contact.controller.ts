@@ -25,7 +25,10 @@ export const createContactHandler = async (req: Request, res: Response, next: Ne
 
 export const listContactsHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const statusParam = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const status = statusParam && ['new', 'read', 'replied', 'closed'].includes(statusParam)
+      ? (statusParam as 'new' | 'read' | 'replied' | 'closed')
+      : undefined;
     const limit =
       typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
         ? Number.parseInt(req.query.limit, 10)

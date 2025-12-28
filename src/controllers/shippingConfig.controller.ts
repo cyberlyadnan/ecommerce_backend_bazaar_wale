@@ -31,7 +31,7 @@ export const updateAdminShippingConfigHandler = async (req: Request, res: Respon
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      throw new ApiError(400, 'Validation failed');
     }
 
     const { isEnabled, flatRate, freeShippingThreshold } = req.body;

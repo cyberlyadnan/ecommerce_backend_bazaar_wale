@@ -226,10 +226,11 @@ export const registerVendor = async (
 
   // If existingUserId is provided, use existing user
   if (existingUserId) {
-    user = await User.findById(existingUserId);
-    if (!user || user.isDeleted) {
+    const foundUser = await User.findById(existingUserId);
+    if (!foundUser || foundUser.isDeleted) {
       throw new ApiError(404, 'User not found');
     }
+    user = foundUser;
 
     // Check if user is already a vendor or admin
     if (user.role === 'vendor' || user.role === 'admin') {
@@ -548,7 +549,6 @@ export const resetPasswordWithFirebase = async ({
   }
 
   user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  user.isPhoneVerified = user.isPhoneVerified || Boolean(phoneNumber);
   user.isEmailVerified = user.isEmailVerified || Boolean(decoded.email_verified);
   await user.save();
 

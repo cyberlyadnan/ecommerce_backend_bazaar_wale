@@ -36,6 +36,7 @@ const OrderSchema = new mongoose_1.default.Schema({
     status: { type: String, enum: ['created', 'vendor_shipped_to_warehouse', 'received_in_warehouse', 'packed', 'shipped', 'delivered', 'cancelled'], default: 'created', index: true },
     shippingAddress: ShippingAddressSchema,
     expectedDeliveryDate: { type: Date },
+    shippedDate: { type: Date }, // Date when order was shipped to customer
     placedAt: { type: Date, default: Date.now },
     adminNotes: { type: String },
     isDeleted: { type: Boolean, default: false }

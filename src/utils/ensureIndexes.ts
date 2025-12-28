@@ -17,8 +17,10 @@ export const ensureProductIndexes = async () => {
     });
 
     for (const legacy of legacyIndexes) {
-      logger.warn(`Dropping legacy product index '${legacy.name}' to rebuild text search support.`);
-      await Product.collection.dropIndex(legacy.name);
+      if (legacy.name) {
+        logger.warn(`Dropping legacy product index '${legacy.name}' to rebuild text search support.`);
+        await Product.collection.dropIndex(legacy.name);
+      }
     }
 
     await Product.createIndexes();
