@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listCategoriesHandler = exports.updateCategoryHandler = exports.createCategoryHandler = void 0;
+exports.deleteCategoryHandler = exports.listCategoriesHandler = exports.updateCategoryHandler = exports.createCategoryHandler = void 0;
 const category_service_1 = require("../services/category.service");
 const createCategoryHandler = async (req, res, next) => {
     try {
@@ -32,3 +32,13 @@ const listCategoriesHandler = async (_req, res, next) => {
     }
 };
 exports.listCategoriesHandler = listCategoriesHandler;
+const deleteCategoryHandler = async (req, res, next) => {
+    try {
+        const result = await (0, category_service_1.deleteCategory)(req.params.categoryId);
+        res.json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.deleteCategoryHandler = deleteCategoryHandler;

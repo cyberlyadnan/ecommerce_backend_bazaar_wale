@@ -5,6 +5,7 @@ import {
   createCategoryHandler,
   listCategoriesHandler,
   updateCategoryHandler,
+  deleteCategoryHandler,
 } from '../controllers/category.controller';
 import {
   createProductHandler,
@@ -97,6 +98,14 @@ router.patch(
   ],
   validateRequest,
   updateCategoryHandler,
+);
+
+router.delete(
+  '/categories/:categoryId',
+  authenticate(['admin']),
+  [param('categoryId').isMongoId()],
+  validateRequest,
+  deleteCategoryHandler,
 );
 
 // List products - allow vendors and admins (vendors only see their own)

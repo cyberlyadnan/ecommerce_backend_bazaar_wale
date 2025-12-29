@@ -70,6 +70,7 @@ router.patch('/categories/:categoryId', (0, auth_middleware_1.authenticate)(['ad
     }),
     (0, express_validator_1.body)('isActive').optional().isBoolean(),
 ], validation_middleware_1.default, category_controller_1.updateCategoryHandler);
+router.delete('/categories/:categoryId', (0, auth_middleware_1.authenticate)(['admin']), [(0, express_validator_1.param)('categoryId').isMongoId()], validation_middleware_1.default, category_controller_1.deleteCategoryHandler);
 // List products - allow vendors and admins (vendors only see their own)
 router.get('/products', (0, auth_middleware_1.authenticate)(['admin', 'vendor']), [
     (0, express_validator_1.query)('search').optional().isString().trim().isLength({ min: 1, max: 120 }).withMessage('Search must be a string'),

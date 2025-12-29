@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { createCategory, listCategories, updateCategory } from '../services/category.service';
+import { createCategory, listCategories, updateCategory, deleteCategory } from '../services/category.service';
 
 export const createCategoryHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -24,6 +24,15 @@ export const listCategoriesHandler = async (_req: Request, res: Response, next: 
   try {
     const data = await listCategories();
     res.json(data);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCategoryHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await deleteCategory(req.params.categoryId);
+    res.json(result);
   } catch (error) {
     next(error);
   }

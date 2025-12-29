@@ -3,8 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listCategories = exports.updateCategory = exports.createCategory = void 0;
+exports.deleteCategory = exports.listCategories = exports.updateCategory = exports.createCategory = void 0;
 const Category_model_1 = __importDefault(require("../models/Category.model"));
+const Product_model_1 = __importDefault(require("../models/Product.model"));
 const apiError_1 = __importDefault(require("../utils/apiError"));
 const slugify_1 = __importDefault(require("../utils/slugify"));
 const ensureUniqueSlug = async (slug, excludeId) => {
@@ -127,3 +128,24 @@ const listCategories = async () => {
     };
 };
 exports.listCategories = listCategories;
+const deleteCategory = async (categoryId) => {
+    const category = await Category_model_1.default.findById(categoryId);
+    if (!category) {
+        throw new apiError_1.default(404, 'Category not found');
+    }
+    // Check if category has children (subcategories)
+    const hasChildren = await Category_model_1.default.exists({ parent: categoryId });
+    if (hasChildren) {
+        throw new apiError_1.default(400, 'Cannot delete category with subcategories. Please delete or move subcategories first.');
+    }
+    // Check if category is used by any products
+    const productsUsingCategory = await Product_model_1.default.exists({
+        $or: [{ category: categoryId }, { subcategory: categoryId }],
+    });
+    if (productsUsingCategory) {
+        throw new apiError_1.default(400, 'Cannot delete category that is assigned to products. Please reassign products first.');
+    }
+    await Category_model_1.default.findByIdAndDelete(categoryId);
+    return { message: 'Category deleted successfully' };
+};
+exports.deleteCategory = deleteCategory;

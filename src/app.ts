@@ -34,7 +34,12 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 app.use(cors(corsOptions));
 app.use(morgan(config.app.env === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
@@ -58,6 +63,31 @@ app.use(
     legacyHeaders: false,
   }),
 );
+
+// CORS middleware for static files (uploads)
+// This allows images to be loaded from any origin (needed when frontend and API are on different domains)
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers for image requests
+  const origin = req.headers.origin;
+  
+  // Allow the requesting origin, or all origins if no origin header
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Content-Type');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 

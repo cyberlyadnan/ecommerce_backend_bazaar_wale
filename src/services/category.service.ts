@@ -1,6 +1,7 @@
 import mongoose, { FilterQuery } from 'mongoose';
 
 import Category from '../models/Category.model';
+import Product from '../models/Product.model';
 import ApiError from '../utils/apiError';
 import slugify from '../utils/slugify';
 
@@ -169,6 +170,30 @@ export const listCategories = async () => {
     }>,
     tree: roots,
   };
+};
+
+export const deleteCategory = async (categoryId: string) => {
+  const category = await Category.findById(categoryId);
+  if (!category) {
+    throw new ApiError(404, 'Category not found');
+  }
+
+  // Check if category has children (subcategories)
+  const hasChildren = await Category.exists({ parent: categoryId });
+  if (hasChildren) {
+    throw new ApiError(400, 'Cannot delete category with subcategories. Please delete or move subcategories first.');
+  }
+
+  // Check if category is used by any products
+  const productsUsingCategory = await Product.exists({
+    $or: [{ category: categoryId }, { subcategory: categoryId }],
+  });
+  if (productsUsingCategory) {
+    throw new ApiError(400, 'Cannot delete category that is assigned to products. Please reassign products first.');
+  }
+
+  await Category.findByIdAndDelete(categoryId);
+  return { message: 'Category deleted successfully' };
 };
 
 
