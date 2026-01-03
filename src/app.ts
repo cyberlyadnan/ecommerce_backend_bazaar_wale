@@ -22,15 +22,34 @@ import errorHandler from './middlewares/error.middleware';
 
 const app = express();
 
+// CORS configuration - restrict to known origins in production
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
       callback(null, true);
       return;
     }
-    callback(null, true);
+    
+    // In production, restrict to your frontend domain
+    if (config.app.env === 'production') {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || 'https://bazaarwale.in',
+        'https://www.bazaarwale.in',
+      ];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } else {
+      // In development, allow all origins
+      callback(null, true);
+    }
   },
   credentials: true,
+  optionsSuccessStatus: 200,
 };
 
 app.set('trust proxy', 1);
@@ -53,16 +72,20 @@ app.use((_req, _res, next) => {
   next();
 });
 
-// Global rate limit - more lenient for development
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500, // Increased from 200 to 500 requests per 15 minutes
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-  }),
-);
+// Global rate limit - stricter in production
+const globalRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: config.app.env === 'production' ? 200 : 500, // Stricter in production
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/health' || req.path === '/';
+  },
+});
+
+app.use(globalRateLimit);
 
 // CORS middleware for static files (uploads)
 // This allows images to be loaded from any origin (needed when frontend and API are on different domains)
