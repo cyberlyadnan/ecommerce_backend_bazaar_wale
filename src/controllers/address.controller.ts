@@ -70,7 +70,8 @@ export const addAddressHandler = async (req: Request, res: Response, next: NextF
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      const errorMessages = errors.array().map((err) => err.msg).join(', ');
+      throw new ApiError(400, `Validation failed: ${errorMessages}`);
     }
 
     const addressData: Omit<Address, 'isDefault'> & { isDefault?: boolean } = {
@@ -111,7 +112,8 @@ export const updateAddressHandler = async (req: Request, res: Response, next: Ne
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ApiError(400, 'Validation failed', errors.array());
+      const errorMessages = errors.array().map((err) => err.msg).join(', ');
+      throw new ApiError(400, `Validation failed: ${errorMessages}`);
     }
 
     const addressIndex = parseInt(req.params.index, 10);
