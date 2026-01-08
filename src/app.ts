@@ -18,6 +18,7 @@ import reviewRoutes from './routes/reviews.routes';
 import vendorDashboardRoutes from './routes/vendorDashboard.routes';
 import blogRoutes from './routes/blog.routes';
 import adminBlogRoutes from './routes/adminBlog.routes';
+import addressRoutes from './routes/address.routes';
 import errorHandler from './middlewares/error.middleware';
 
 const app = express();
@@ -137,6 +138,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/vendor/dashboard', vendorDashboardRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/admin/blogs', adminBlogRoutes);
+app.use('/api/addresses', addressRoutes);
 
 app.use(errorHandler);
 
