@@ -22,6 +22,8 @@ export interface ShippingAddress {
 export interface CreateOrderInput {
   shippingAddress: ShippingAddress;
   razorpayOrderId?: string; // Optional, will be created if not provided
+  // Frontend should NOT send calculated totals - backend recalculates everything for security
+  // If frontend sends these, they will be ignored and recalculated
 }
 
 export interface OrderCalculationResult {
@@ -41,6 +43,9 @@ export interface OrderCalculationResult {
     qty: number;
     pricePerUnit: number;
     totalPrice: number;
+    taxCode?: string;
+    taxPercentage: number;
+    taxAmount: number;
   }>;
 }
 
@@ -61,6 +66,7 @@ export const calculateOrderTotals = async (
 
   const items: OrderCalculationResult['items'] = [];
   let subtotal = 0;
+  let totalTax = 0;
 
   // Process each cart item
   for (const cartItem of cart.items) {
@@ -88,8 +94,17 @@ export const calculateOrderTotals = async (
       throw new ApiError(404, `Vendor not found for product: ${product.title}`);
     }
 
+    // Calculate item total (before tax)
     const itemTotal = cartItem.pricePerUnit * cartItem.qty;
     subtotal += itemTotal;
+
+    // Get tax information from product (default to 18% if not set)
+    const taxPercentage = product.taxPercentage ?? 18;
+    const taxCode = product.taxCode || 'GST';
+    
+    // Calculate tax for this specific item
+    const itemTaxAmount = Math.round((itemTotal * taxPercentage) / 100);
+    totalTax += itemTaxAmount;
 
     items.push({
       productId: new mongoose.Types.ObjectId(
@@ -107,6 +122,9 @@ export const calculateOrderTotals = async (
       qty: cartItem.qty,
       pricePerUnit: cartItem.pricePerUnit,
       totalPrice: itemTotal,
+      taxCode,
+      taxPercentage,
+      taxAmount: itemTaxAmount,
     });
   }
 
@@ -118,8 +136,8 @@ export const calculateOrderTotals = async (
       : Math.max(0, shippingConfig.flatRate)
     : 0;
 
-  // Calculate tax (GST 18% for B2B)
-  const tax = Math.round(subtotal * 0.18);
+  // Total tax is sum of all item taxes
+  const tax = totalTax;
 
   // Total amount
   const total = subtotal + shippingCost + tax;
@@ -194,11 +212,36 @@ export const createOrder = async (
   const defaultExpectedDeliveryDate = new Date();
   defaultExpectedDeliveryDate.setDate(defaultExpectedDeliveryDate.getDate() + 7);
 
-  // Create order in database
+  // SECURITY: Double-check calculation totals before creating order
+  // Verify all calculations are correct
+  const calculatedTotal = calculation.subtotal + calculation.shippingCost + calculation.tax;
+  if (Math.abs(calculatedTotal - calculation.total) > 0.01) {
+    throw new ApiError(500, 'Order calculation error - totals do not match');
+  }
+
+  // Verify tax calculation matches sum of item taxes
+  const sumOfItemTaxes = calculation.items.reduce((sum, item) => sum + item.taxAmount, 0);
+  if (Math.abs(sumOfItemTaxes - calculation.tax) > 0.01) {
+    throw new ApiError(500, 'Tax calculation error - item taxes do not match total tax');
+  }
+
+  // Create order in database with tax information per item
   const order = await Order.create({
     orderNumber,
     userId: new mongoose.Types.ObjectId(userId),
-    items: calculation.items,
+    items: calculation.items.map((item) => ({
+      productId: item.productId,
+      title: item.title,
+      sku: item.sku,
+      vendorId: item.vendorId,
+      vendorSnapshot: item.vendorSnapshot,
+      qty: item.qty,
+      pricePerUnit: item.pricePerUnit,
+      totalPrice: item.totalPrice,
+      taxCode: item.taxCode,
+      taxPercentage: item.taxPercentage,
+      taxAmount: item.taxAmount,
+    })),
     subtotal: calculation.subtotal,
     shippingCost: calculation.shippingCost,
     tax: calculation.tax,
@@ -267,6 +310,25 @@ export const verifyAndCompletePayment = async (
   const paymentDetails = await razorpayService.getPaymentDetails(
     paymentData.razorpay_payment_id,
   );
+
+  // SECURITY: Recalculate order totals to prevent manipulation
+  // This ensures the order totals haven't been tampered with
+  const recalculatedTotals = await calculateOrderTotals(userId);
+  
+  // Verify recalculated totals match stored order totals
+  const tolerance = 0.01; // Allow 1 paisa tolerance for rounding
+  if (Math.abs(recalculatedTotals.subtotal - order.subtotal) > tolerance) {
+    throw new ApiError(400, 'Order subtotal mismatch - possible tampering detected');
+  }
+  if (Math.abs(recalculatedTotals.tax - order.tax) > tolerance) {
+    throw new ApiError(400, 'Order tax mismatch - possible tampering detected');
+  }
+  if (Math.abs(recalculatedTotals.shippingCost - order.shippingCost) > tolerance) {
+    throw new ApiError(400, 'Order shipping cost mismatch - possible tampering detected');
+  }
+  if (Math.abs(recalculatedTotals.total - order.total) > tolerance) {
+    throw new ApiError(400, 'Order total mismatch - possible tampering detected');
+  }
 
   // Verify payment amount matches order total
   const expectedAmount = order.total * 100; // Convert to paise
@@ -431,9 +493,9 @@ export const getVendorOrders = async (vendorId: string) => {
       return null;
     }
 
-    // Calculate totals for vendor's items only
+    // Calculate totals for vendor's items only (using per-item tax)
     const vendorSubtotal = vendorItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    const vendorTax = Math.round(vendorSubtotal * 0.18);
+    const vendorTax = vendorItems.reduce((sum, item) => sum + (item.taxAmount || 0), 0);
     const vendorTotal = vendorSubtotal + vendorTax;
 
     return {

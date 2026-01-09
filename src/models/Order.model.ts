@@ -12,7 +12,11 @@ const OrderItemSchema = new mongoose.Schema({
   },
   qty: { type: Number, required: true },
   pricePerUnit: { type: Number, required: true },
-  totalPrice: { type: Number, required: true }
+  totalPrice: { type: Number, required: true },
+  // Tax information per item
+  taxCode: { type: String },
+  taxPercentage: { type: Number, default: 18 },
+  taxAmount: { type: Number, default: 0 } // Calculated tax for this item
 }, { _id: false });
 
 const ShippingAddressSchema = new mongoose.Schema({

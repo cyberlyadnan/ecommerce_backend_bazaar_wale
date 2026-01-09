@@ -16,7 +16,11 @@ const OrderItemSchema = new mongoose_1.default.Schema({
     },
     qty: { type: Number, required: true },
     pricePerUnit: { type: Number, required: true },
-    totalPrice: { type: Number, required: true }
+    totalPrice: { type: Number, required: true },
+    // Tax information per item
+    taxCode: { type: String },
+    taxPercentage: { type: Number, default: 18 },
+    taxAmount: { type: Number, default: 0 } // Calculated tax for this item
 }, { _id: false });
 const ShippingAddressSchema = new mongoose_1.default.Schema({
     name: String, phone: String, line1: String, line2: String, city: String, state: String, country: String, postalCode: String

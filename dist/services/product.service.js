@@ -77,6 +77,8 @@ const createProduct = async (input) => {
         vendorSnapshot: buildVendorSnapshot(vendor),
         price: Number(input.price),
         pricingTiers: normalisePricing(input.pricingTiers),
+        taxCode: input.taxCode || 'GST',
+        taxPercentage: typeof input.taxPercentage === 'number' ? Math.max(0, Math.min(100, input.taxPercentage)) : 18,
         isActive,
         approvedByAdmin,
         featured: typeof input.featured === 'boolean' ? input.featured : false,
@@ -134,6 +136,12 @@ const updateProduct = async (productId, input) => {
     }
     if (typeof input.price === 'number') {
         product.price = input.price;
+    }
+    if (typeof input.taxCode !== 'undefined') {
+        product.taxCode = input.taxCode || 'GST';
+    }
+    if (typeof input.taxPercentage === 'number') {
+        product.taxPercentage = Math.max(0, Math.min(100, input.taxPercentage));
     }
     if (typeof input.isActive === 'boolean') {
         product.isActive = input.isActive;

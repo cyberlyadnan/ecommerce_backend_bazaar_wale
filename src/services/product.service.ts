@@ -32,6 +32,8 @@ export interface ProductInput {
   vendorId: string;
   price: number;
   pricingTiers?: PricingTierInput[];
+  taxCode?: string;
+  taxPercentage?: number;
   isActive?: boolean;
   approvedByAdmin?: boolean;
   featured?: boolean;
@@ -124,6 +126,8 @@ export const createProduct = async (input: ProductInput) => {
     vendorSnapshot: buildVendorSnapshot(vendor),
     price: Number(input.price),
     pricingTiers: normalisePricing(input.pricingTiers),
+    taxCode: input.taxCode || 'GST',
+    taxPercentage: typeof input.taxPercentage === 'number' ? Math.max(0, Math.min(100, input.taxPercentage)) : 18,
     isActive,
     approvedByAdmin,
     featured: typeof input.featured === 'boolean' ? input.featured : false,
@@ -189,6 +193,12 @@ export const updateProduct = async (productId: string, input: ProductUpdateInput
   }
   if (typeof input.price === 'number') {
     product.price = input.price;
+  }
+  if (typeof input.taxCode !== 'undefined') {
+    product.taxCode = input.taxCode || 'GST';
+  }
+  if (typeof input.taxPercentage === 'number') {
+    product.taxPercentage = Math.max(0, Math.min(100, input.taxPercentage));
   }
   if (typeof input.isActive === 'boolean') {
     product.isActive = input.isActive;

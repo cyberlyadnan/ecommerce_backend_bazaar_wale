@@ -40,6 +40,9 @@ const ProductSchema = new mongoose_1.default.Schema({
     vendorSnapshot: VendorSnapshotSchema,
     price: { type: Number, required: true }, // base price
     pricingTiers: [PricingTierSchema], // optional bulk pricing tiers
+    // Tax information
+    taxCode: { type: String }, // e.g., "GST", "IGST", "CGST+SGST"
+    taxPercentage: { type: Number, default: 18, min: 0, max: 100 }, // Tax percentage (0-100)
     isActive: { type: Boolean, default: true },
     approvedByAdmin: { type: Boolean, default: false },
     featured: { type: Boolean, default: false, index: true }, // Featured products for homepage
