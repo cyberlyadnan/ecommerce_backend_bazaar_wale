@@ -78,26 +78,51 @@ export interface VerifyPaymentSignatureParams {
 export const verifyPaymentSignature = (
   params: VerifyPaymentSignatureParams,
 ): boolean => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = params;
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = params;
 
-  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error('Missing required payment verification parameters');
+      return false;
+    }
+
+    // Create the signature string
+    const signatureString = `${razorpay_order_id}|${razorpay_payment_id}`;
+
+    // Generate expected signature using HMAC SHA256
+    const expectedSignature = crypto
+      .createHmac('sha256', config.razorpay.keySecret)
+      .update(signatureString)
+      .digest('hex');
+
+    // Convert both signatures to buffers
+    // Handle invalid hex strings gracefully
+    let receivedSignatureBuffer: Buffer;
+    try {
+      receivedSignatureBuffer = Buffer.from(razorpay_signature, 'hex');
+    } catch (error) {
+      console.error('Invalid signature hex format:', error);
+      return false;
+    }
+
+    const expectedSignatureBuffer = Buffer.from(expectedSignature, 'hex');
+
+    // timingSafeEqual requires both buffers to be the same length
+    // If lengths differ, signatures don't match
+    if (receivedSignatureBuffer.length !== expectedSignatureBuffer.length) {
+      console.error('Signature length mismatch');
+      return false;
+    }
+
+    // Use constant-time comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      receivedSignatureBuffer,
+      expectedSignatureBuffer,
+    );
+  } catch (error) {
+    console.error('Error verifying payment signature:', error);
     return false;
   }
-
-  // Create the signature string
-  const signatureString = `${razorpay_order_id}|${razorpay_payment_id}`;
-
-  // Generate expected signature using HMAC SHA256
-  const expectedSignature = crypto
-    .createHmac('sha256', config.razorpay.keySecret)
-    .update(signatureString)
-    .digest('hex');
-
-  // Use constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(razorpay_signature),
-    Buffer.from(expectedSignature),
-  );
 };
 
 /**

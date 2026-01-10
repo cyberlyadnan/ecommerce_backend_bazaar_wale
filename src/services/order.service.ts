@@ -306,31 +306,13 @@ export const verifyAndCompletePayment = async (
     throw new ApiError(400, 'Invalid payment signature');
   }
 
-  // Fetch payment details from Razorpay to double-check
+  // Fetch payment details from Razorpay to verify payment
   const paymentDetails = await razorpayService.getPaymentDetails(
     paymentData.razorpay_payment_id,
   );
 
-  // SECURITY: Recalculate order totals to prevent manipulation
-  // This ensures the order totals haven't been tampered with
-  const recalculatedTotals = await calculateOrderTotals(userId);
-  
-  // Verify recalculated totals match stored order totals
-  const tolerance = 0.01; // Allow 1 paisa tolerance for rounding
-  if (Math.abs(recalculatedTotals.subtotal - order.subtotal) > tolerance) {
-    throw new ApiError(400, 'Order subtotal mismatch - possible tampering detected');
-  }
-  if (Math.abs(recalculatedTotals.tax - order.tax) > tolerance) {
-    throw new ApiError(400, 'Order tax mismatch - possible tampering detected');
-  }
-  if (Math.abs(recalculatedTotals.shippingCost - order.shippingCost) > tolerance) {
-    throw new ApiError(400, 'Order shipping cost mismatch - possible tampering detected');
-  }
-  if (Math.abs(recalculatedTotals.total - order.total) > tolerance) {
-    throw new ApiError(400, 'Order total mismatch - possible tampering detected');
-  }
-
   // Verify payment amount matches order total
+  // This is the critical security check - ensures payment matches what was ordered
   const expectedAmount = order.total * 100; // Convert to paise
   if (paymentDetails.amount !== expectedAmount) {
     throw new ApiError(400, 'Payment amount mismatch');

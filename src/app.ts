@@ -28,6 +28,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'https://bazaarwale.in',
   'https://bazaarwale.in',
   'https://www.bazaarwale.in',
+  'http://localhost:3000',
 ];
 
 const corsOptions: cors.CorsOptions = {
