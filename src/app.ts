@@ -24,37 +24,39 @@ import errorHandler from './middlewares/error.middleware';
 const app = express();
 
 // CORS configuration - restrict to known origins in production
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'https://bazaarwale.in',
+  'https://bazaarwale.in',
+  'https://www.bazaarwale.in',
+];
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) {
-      callback(null, true);
-      return;
+    // Allow non-browser requests (Postman, mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Allow whitelisted domains
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
-    
-    // In production, restrict to your frontend domain
-    if (config.app.env === 'production') {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL || 'https://bazaarwale.in',
-        'https://www.bazaarwale.in',
-      ];
-      
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    } else {
-      // In development, allow all origins
-      callback(null, true);
-    }
+
+    // IMPORTANT: do NOT throw error (breaks preflight)
+    return callback(null, false);
   },
   credentials: true,
-  optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Length', 'Content-Type', 'Content-Range'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+  ],
+  exposedHeaders: ['Content-Length', 'Content-Range'],
+  optionsSuccessStatus: 204,
 };
+
+
 
 app.set('trust proxy', 1);
 app.use(
@@ -66,6 +68,7 @@ app.use(
 app.use(cors(corsOptions));
 app.use(morgan(config.app.env === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
+app.options('*', cors(corsOptions)); // ✅ ADD THIS
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use((_req, _res, next) => {
