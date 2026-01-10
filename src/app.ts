@@ -68,7 +68,6 @@ app.use(
 app.use(cors(corsOptions));
 app.use(morgan(config.app.env === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
-app.options('*', cors(corsOptions)); // ✅ ADD THIS
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use((_req, _res, next) => {
