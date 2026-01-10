@@ -96,6 +96,7 @@ export const uploadFileHandler = (req: Request, res: Response, next: NextFunctio
       },
     });
   } catch (error) {
+    console.error('[File Upload] Error:', error);
     next(error);
   }
 };
