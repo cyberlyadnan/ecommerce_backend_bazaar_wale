@@ -619,7 +619,9 @@ export const requestPasswordReset = async (email: string) => {
     expiresAt,
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  // Use FRONTEND_URL from environment, default to production URL
+  // This ensures production links work even if FRONTEND_URL env var is not set
+  const frontendUrl = process.env.FRONTEND_URL || (config.app.env === 'production' ? 'https://bazaarwale.in' : 'http://localhost:3000');
   const resetUrl = `${frontendUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
   const emailHtml = `
