@@ -424,7 +424,7 @@ export const loginWithFirebase = async (
     // Create new user with Google OAuth data - sync all data to MongoDB
     logger.info('Creating new user from Google OAuth', { email: finalEmail, name: finalName, firebaseUid });
     user = await User.create({
-      role: role === 'admin' ? 'customer' : role, // Force customer if somehow admin role was passed
+      role,
       name: finalName,
       email: finalEmail,
       isEmailVerified, // Google emails are verified
