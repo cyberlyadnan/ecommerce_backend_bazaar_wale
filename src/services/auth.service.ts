@@ -619,12 +619,96 @@ export const requestPasswordReset = async (email: string) => {
     expiresAt,
   });
 
-  const resetUrl = `${config.app.baseUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${frontendUrl}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+              <div style="background-color: rgba(255, 255, 255, 0.2); width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              </div>
+              <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -0.5px;">Reset Your Password</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                Hi ${user.name || 'there'},
+              </p>
+              <p style="color: #666666; font-size: 15px; line-height: 1.6; margin: 0 0 30px;">
+                We received a request to reset your password. Click the button below to create a new password. This link will expire in 1 hour.
+              </p>
+              
+              <!-- Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="text-align: center; padding: 0 0 30px;">
+                    <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Alternative Link -->
+              <p style="color: #999999; font-size: 13px; line-height: 1.6; margin: 0 0 20px; text-align: center;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="color: #667eea; font-size: 13px; line-height: 1.6; margin: 0 0 30px; word-break: break-all; text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+                ${resetUrl}
+              </p>
+              
+              <!-- Security Notice -->
+              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-top: 30px;">
+                <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">
+                  <strong>Security Tip:</strong> If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+              <p style="color: #999999; font-size: 13px; line-height: 1.6; margin: 0 0 10px;">
+                This is an automated email. Please do not reply to this message.
+              </p>
+              <p style="color: #cccccc; font-size: 12px; line-height: 1.6; margin: 0;">
+                &copy; ${new Date().getFullYear()} BazaarWale. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
 
   await sendMail({
     to: email,
-    subject: 'Reset your password',
-    html: `<p>Hi ${user.name},</p><p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    subject: 'Reset Your Password - BazaarWale',
+    html: emailHtml,
   });
 };
 
