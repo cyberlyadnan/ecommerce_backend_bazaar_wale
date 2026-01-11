@@ -7,7 +7,6 @@ import {
   loginWithPassword,
   logout,
   refreshAuthTokens,
-  registerAdmin,
   registerCustomer,
   registerVendor,
   registerWithFirebase,
@@ -56,15 +55,6 @@ export const registerVendorHandler = async (req: Request, res: Response, next: N
     }
     
     const user = await registerVendor(req.body, existingUserId);
-    res.status(201).json({ user: serializeUser(user) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const registerAdminHandler = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const user = await registerAdmin(req.body);
     res.status(201).json({ user: serializeUser(user) });
   } catch (error) {
     next(error);
@@ -260,7 +250,6 @@ export const resetPasswordWithFirebaseHandler = async (req: Request, res: Respon
 export default {
   registerCustomerHandler,
   registerVendorHandler,
-  registerAdminHandler,
   registerWithFirebaseHandler,
   passwordLoginHandler,
   firebaseLoginHandler,

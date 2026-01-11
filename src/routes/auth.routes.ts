@@ -11,7 +11,6 @@ import {
   passwordLoginHandler,
   profileHandler,
   refreshHandler,
-  registerAdminHandler,
   registerCustomerHandler,
   registerVendorHandler,
   registerWithFirebaseHandler,
@@ -93,21 +92,10 @@ router.post(
 );
 
 router.post(
-  '/register/admin',
-  [
-    body('name').isString().trim().notEmpty(),
-    body('email').isEmail(),
-    body('password').isLength({ min: 8 }),
-  ],
-  validateRequest,
-  registerAdminHandler,
-);
-
-router.post(
   '/register/firebase',
   [
     body('firebaseToken').isString().notEmpty(),
-    body('role').optional().isIn(['customer', 'vendor', 'admin']),
+    body('role').optional().isIn(['customer', 'vendor']),
     body('name').optional().isString().trim(),
     body('profile.email').optional().isEmail(),
   ],
@@ -120,7 +108,7 @@ router.post(
   [
     body('identifier').isString().notEmpty(),
     body('password').isString().notEmpty(),
-    body('role').optional().isIn(['customer', 'vendor', 'admin']),
+    body('role').optional().isIn(['customer', 'vendor']),
   ],
   validateRequest,
   passwordLoginHandler,
@@ -130,7 +118,7 @@ router.post(
   '/login/firebase',
   [
     body('firebaseToken').isString().notEmpty(),
-    body('role').optional().isIn(['customer', 'vendor', 'admin']),
+    body('role').optional().isIn(['customer', 'vendor']),
     body('name').optional().isString(),
   ],
   validateRequest,
