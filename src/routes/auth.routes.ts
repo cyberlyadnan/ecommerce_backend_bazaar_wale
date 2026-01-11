@@ -108,7 +108,7 @@ router.post(
   [
     body('identifier').isString().notEmpty(),
     body('password').isString().notEmpty(),
-    body('role').optional().isIn(['customer', 'vendor']),
+    body('role').optional().isIn(['customer', 'vendor', 'admin']),
   ],
   validateRequest,
   passwordLoginHandler,
@@ -118,7 +118,7 @@ router.post(
   '/login/firebase',
   [
     body('firebaseToken').isString().notEmpty(),
-    body('role').optional().isIn(['customer', 'vendor']),
+    body('role').optional().isIn(['customer', 'vendor', 'admin']),
     body('name').optional().isString(),
   ],
   validateRequest,

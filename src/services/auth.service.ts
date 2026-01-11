@@ -334,11 +334,6 @@ export const loginWithPassword = async ({
     throw new ApiError(401, 'Invalid credentials');
   }
 
-  // Block admin login - admin accounts cannot login through public endpoints
-  if (user.role === 'admin') {
-    throw new ApiError(403, 'Admin authentication is not available through this endpoint');
-  }
-
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
     throw new ApiError(401, 'Invalid credentials');
@@ -401,26 +396,12 @@ export const loginWithFirebase = async (
     isDeleted: false,
   });
 
-  // Block admin registration/login through Firebase
+  // Block admin registration through Firebase (but allow existing admin to login)
   if (role === 'admin') {
     throw new ApiError(403, 'Admin registration is not available through this endpoint');
   }
 
   if (!user) {
-    // Block admin role - if user exists as admin, prevent login
-    const existingAdmin = await User.findOne({
-      $or: [
-        { email: finalEmail },
-        { 'meta.firebaseUid': firebaseUid },
-      ],
-      role: 'admin',
-      isDeleted: false,
-    });
-    
-    if (existingAdmin) {
-      throw new ApiError(403, 'Admin authentication is not available through this endpoint');
-    }
-
     // Create new user with Google OAuth data - sync all data to MongoDB
     logger.info('Creating new user from Google OAuth', { email: finalEmail, name: finalName, firebaseUid });
     user = await User.create({
@@ -489,11 +470,6 @@ export const loginWithFirebase = async (
       updates: Object.keys(updateData),
       hasPicture: !!tokenPicture,
     });
-  }
-
-  // Block admin login through Firebase
-  if (user.role === 'admin') {
-    throw new ApiError(403, 'Admin authentication is not available through this endpoint');
   }
 
   if (user.role === 'vendor' && user.vendorStatus !== 'active') {
