@@ -64,6 +64,15 @@ export interface RazorpayConfig {
   keySecret: string;
 }
 
+export interface TranslationConfig {
+  openaiApiKey: string;
+  apiToken: string;
+}
+
+export interface TransliterationConfig {
+  jwtSecret: string;
+}
+
 export const config = {
   app: {
     env: process.env.NODE_ENV || 'development',
@@ -104,6 +113,15 @@ export const config = {
     keyId: process.env.RAZORPAY_KEY_ID || '',
     keySecret: process.env.RAZORPAY_KEY_SECRET || '',
   } as RazorpayConfig,
+
+  translation: {
+    openaiApiKey: required(process.env.OPENAI_API_KEY, 'OPENAI_API_KEY'),
+    apiToken: required(process.env.TRANSLATION_API_TOKEN, 'TRANSLATION_API_TOKEN'),
+  } as TranslationConfig,
+
+  transliteration: {
+    jwtSecret: required(process.env.TRANSLITERATION_JWT_SECRET, 'TRANSLITERATION_JWT_SECRET'),
+  } as TransliterationConfig,
 };
 
 export default config;

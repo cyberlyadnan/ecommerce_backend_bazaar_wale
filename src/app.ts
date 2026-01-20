@@ -19,6 +19,9 @@ import vendorDashboardRoutes from './routes/vendorDashboard.routes';
 import blogRoutes from './routes/blog.routes';
 import adminBlogRoutes from './routes/adminBlog.routes';
 import addressRoutes from './routes/address.routes';
+import translationRoutes from './routes/translation.routes';
+import transliterationAuthRoutes from './routes/transliterationAuth.routes';
+import transliterationRoutes from './routes/transliteration.routes';
 import errorHandler from './middlewares/error.middleware';
 
 const app = express();
@@ -145,6 +148,10 @@ app.use('/api/vendor/dashboard', vendorDashboardRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/admin/blogs', adminBlogRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/translation', translationRoutes); // Legacy route (unchanged)
+// New isolated transliteration API with security
+app.use('/api/transliteration/auth', transliterationAuthRoutes);
+app.use('/api/transliteration', transliterationRoutes);
 
 app.use(errorHandler);
 
