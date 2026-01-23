@@ -75,13 +75,19 @@ router.post(
     body('panNumber').isString().trim().notEmpty(),
     body('documents').isArray({ min: 4 }),
     body('documents.*.type').optional().isString(),
-    body('documents.*.url').optional().isString(),
+    body('documents.*.url').optional().isString(), // Legacy - kept for backward compatibility
+    body('documents.*.filePath').optional().isString(), // Secure storage path (preferred)
     body('documents.*.fileName').optional().isString(),
     body('documents').custom((docs) => {
       const list = Array.isArray(docs) ? docs : [];
       const requiredTypes = ['aadhaarFront', 'aadhaarBack', 'gstCertificate', 'panCard'];
       for (const t of requiredTypes) {
-        const found = list.find((d: any) => d?.type === t && typeof d?.url === 'string' && d.url.trim());
+        // Accept either filePath (preferred) or url (legacy)
+        const found = list.find((d: any) => 
+          d?.type === t && 
+          (typeof d?.filePath === 'string' && d.filePath.trim() || 
+           typeof d?.url === 'string' && d.url.trim())
+        );
         if (!found) return false;
       }
       return true;

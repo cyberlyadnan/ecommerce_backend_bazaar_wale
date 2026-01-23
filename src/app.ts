@@ -22,6 +22,7 @@ import addressRoutes from './routes/address.routes';
 import translationRoutes from './routes/translation.routes';
 import transliterationAuthRoutes from './routes/transliterationAuth.routes';
 import transliterationRoutes from './routes/transliteration.routes';
+import vendorDocumentRoutes from './routes/vendorDocument.routes';
 import errorHandler from './middlewares/error.middleware';
 
 const app = express();
@@ -145,6 +146,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/vendor/dashboard', vendorDashboardRoutes);
+app.use('/api', vendorDocumentRoutes); // Secure vendor document routes
 app.use('/api/blog', blogRoutes);
 app.use('/api/admin/blogs', adminBlogRoutes);
 app.use('/api/addresses', addressRoutes);

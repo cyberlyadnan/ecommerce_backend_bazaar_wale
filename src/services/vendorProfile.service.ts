@@ -23,6 +23,27 @@ export async function getVendorProfileWithDocs(vendorId: string) {
     .select('status submittedAt reviewedAt adminNotes documents')
     .lean();
 
+  // Security: Transform documents to return secure access URLs instead of direct file URLs
+  // Documents with filePath are stored securely and must be accessed via API
+  const transformDocuments = (docs: any[]) => {
+    if (!Array.isArray(docs)) return [];
+    
+    return docs.map((doc: any) => ({
+      _id: doc._id?.toString() || null,
+      type: doc.type || 'document',
+      fileName: doc.fileName || 'Unknown file',
+      // Return secure API endpoint for documents with filePath
+      // Frontend should use this endpoint to access files securely
+      accessUrl: doc._id && (doc.filePath || doc.url)
+        ? `/api/vendor/documents/${doc._id.toString()}/file`
+        : null,
+      // Legacy URL - kept for backward compatibility but should not be used for new uploads
+      legacyUrl: doc.url && !doc.filePath ? doc.url : null,
+      // Internal fields (not exposed to frontend for security)
+      // filePath is not returned to prevent path disclosure
+    }));
+  };
+
   return {
     vendor: {
       _id: user._id.toString(),
@@ -44,7 +65,8 @@ export async function getVendorProfileWithDocs(vendorId: string) {
           submittedAt: verification.submittedAt,
           reviewedAt: verification.reviewedAt,
           adminNotes: verification.adminNotes,
-          documents: verification.documents || [],
+          // Security: Return transformed documents with secure access URLs
+          documents: transformDocuments(verification.documents || []),
         }
       : null,
   };

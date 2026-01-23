@@ -55,7 +55,8 @@ interface RegisterVendorInput extends RegisterCustomerInput {
   panNumber?: string;
   documents?: {
     type?: string;
-    url?: string;
+    url?: string; // Legacy - kept for backward compatibility
+    filePath?: string; // Secure storage path (preferred)
     fileName?: string;
   }[];
 }
@@ -198,10 +199,12 @@ export const registerVendor = async (
   const { businessName, gstNumber, aadharNumber, panNumber, documents, password, ...rest } = input;
 
   const docList = Array.isArray(documents) ? documents : [];
-  const aadhaarFront = docList.find((d) => d?.type === 'aadhaarFront' && d?.url);
-  const aadhaarBack = docList.find((d) => d?.type === 'aadhaarBack' && d?.url);
-  const gstCertDoc = docList.find((d) => d?.type === 'gstCertificate' && d?.url);
-  const panCardDoc = docList.find((d) => d?.type === 'panCard' && d?.url);
+  // Security: Prefer filePath over url for secure storage
+  // filePath indicates the document is stored in private folder
+  const aadhaarFront = docList.find((d) => d?.type === 'aadhaarFront' && (d?.filePath || d?.url));
+  const aadhaarBack = docList.find((d) => d?.type === 'aadhaarBack' && (d?.filePath || d?.url));
+  const gstCertDoc = docList.find((d) => d?.type === 'gstCertificate' && (d?.filePath || d?.url));
+  const panCardDoc = docList.find((d) => d?.type === 'panCard' && (d?.filePath || d?.url));
 
   if (!gstNumber || !gstNumber.trim()) {
     throw new ApiError(400, 'GST number is required for vendor registration');
@@ -221,6 +224,15 @@ export const registerVendor = async (
       'Aadhaar front, Aadhaar back, GST certificate, and PAN card are required for vendor verification',
     );
   }
+
+  // Helper function to create document entry with filePath (preferred) or url (legacy)
+  const createDocumentEntry = (doc: any) => ({
+    type: doc.type,
+    fileName: doc.fileName,
+    // Security: Prefer filePath for secure storage, fallback to url for legacy documents
+    filePath: doc.filePath || undefined,
+    url: doc.filePath ? undefined : doc.url, // Only store url if filePath is not available
+  });
 
   let user: UserDocument;
 
@@ -282,6 +294,7 @@ export const registerVendor = async (
   }
 
   // Create vendor verification request
+  // Security: Store filePath for secure documents, url for legacy compatibility
   await VendorVerification.create({
     userId: user._id,
     businessName,
@@ -289,10 +302,10 @@ export const registerVendor = async (
     aadharNumber,
     panNumber,
     documents: [
-      { type: 'aadhaarFront', url: aadhaarFront.url, fileName: aadhaarFront.fileName },
-      { type: 'aadhaarBack', url: aadhaarBack.url, fileName: aadhaarBack.fileName },
-      { type: 'gstCertificate', url: gstCertDoc.url, fileName: gstCertDoc.fileName },
-      { type: 'panCard', url: panCardDoc.url, fileName: panCardDoc.fileName },
+      createDocumentEntry(aadhaarFront),
+      createDocumentEntry(aadhaarBack),
+      createDocumentEntry(gstCertDoc),
+      createDocumentEntry(panCardDoc),
     ],
   });
 

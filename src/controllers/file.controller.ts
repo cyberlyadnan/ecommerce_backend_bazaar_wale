@@ -75,6 +75,32 @@ export const uploadFileHandler = (req: Request, res: Response, next: NextFunctio
     // Remove leading slash if present to avoid double slashes
     const cleanPath = relativePath ? relativePath.replace(/^\/+/, '') : '';
     
+    // Security: Check if this is a vendor application document upload
+    // Vendor documents should be stored in private folder and NOT exposed via public URL
+    const isVendorDocument = req.path.includes('/vendor-application') || 
+                            req.query.folder === 'vendor-documents' ||
+                            cleanPath.startsWith('vendor-documents/');
+
+    if (isVendorDocument) {
+      // For vendor documents, return filePath instead of public URL
+      // The filePath will be used to access documents via secure API endpoints
+      // This ensures documents are NOT publicly accessible
+      res.status(201).json({
+        file: {
+          id: file.filename,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          // Return filePath for secure storage (relative to uploads root)
+          filePath: cleanPath,
+          // DO NOT return public URL for vendor documents
+          // Frontend should use secure API endpoints to access these files
+        },
+      });
+      return;
+    }
+
+    // For non-vendor documents (product images, etc.), return public URL as before
     // Get base URL from request (works in both dev and production)
     const baseUrl = getBaseUrlFromRequest(req).replace(/\/$/, '');
     

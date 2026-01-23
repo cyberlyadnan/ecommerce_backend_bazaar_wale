@@ -10,8 +10,10 @@ export type VendorVerificationStatus = 'pending' | 'approved' | 'rejected';
 
 export interface VendorDocument {
   type?: string;
-  url?: string;
+  url?: string; // Legacy field - kept for backward compatibility during migration
   fileName?: string;
+  filePath?: string; // Secure storage path - relative to uploads root, stored in private folder
+  _id?: Types.ObjectId; // MongoDB subdocument ID for document identification
 }
 
 export interface IVendorVerification extends Document {
@@ -39,8 +41,10 @@ const VendorVerificationSchema = new Schema<IVendorVerification>(
         type: {
           type: String,
         },
-        url: { type: String },
+        url: { type: String }, // Legacy - kept for backward compatibility
         fileName: { type: String },
+        filePath: { type: String }, // Secure storage path (relative to uploads root)
+        _id: { type: Schema.Types.ObjectId, auto: true }, // Auto-generated ID for document identification
       },
     ],
     businessName: { type: String },

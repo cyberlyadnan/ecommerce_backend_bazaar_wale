@@ -62,6 +62,24 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
     verifications.map((v: any) => [v.userId.toString(), v]),
   );
 
+  // Security: Transform documents to return secure access URLs instead of direct file URLs
+  const transformDocuments = (docs: any[], vendorId: string) => {
+    if (!Array.isArray(docs)) return [];
+    
+    return docs.map((doc: any) => ({
+      _id: doc._id?.toString() || null,
+      type: doc.type || 'document',
+      fileName: doc.fileName || 'Unknown file',
+      // Return secure API endpoint for documents
+      // Admin should use /api/admin/vendors/:vendorId/documents/:documentId/file
+      accessUrl: doc._id && (doc.filePath || doc.url)
+        ? `/api/admin/vendors/${vendorId}/documents/${doc._id.toString()}/file`
+        : null,
+      // Legacy URL - kept for backward compatibility but should not be used
+      legacyUrl: doc.url && !doc.filePath ? doc.url : null,
+    }));
+  };
+
   return vendors.map((vendor: any) => {
     const verification = verificationMap.get(vendor._id.toString());
     return {
@@ -73,7 +91,8 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
             submittedAt: verification.submittedAt,
             reviewedAt: verification.reviewedAt,
             adminNotes: verification.adminNotes,
-            documents: verification.documents || [],
+            // Security: Return transformed documents with secure access URLs
+            documents: transformDocuments(verification.documents || [], vendor._id.toString()),
           }
         : null,
     };
