@@ -115,18 +115,23 @@ export const listProductsHandler = async (req: Request, res: Response, next: Nex
     const limitParam =
       typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
         ? Number.parseInt(req.query.limit, 10)
-        : undefined;
+        : 20;
+    const skipParam =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
 
     // For vendors, use their ID; for admins, use adminId for 'mine' scope
     const adminId = userRole === 'admin' ? userId : userRole === 'vendor' ? userId : undefined;
 
-    const products = await listProducts({
+    const result = await listProducts({
       search: searchParam,
       scope: scopeParam,
       adminId,
       limit: limitParam,
+      skip: skipParam,
     });
-    res.json({ products });
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -148,9 +153,13 @@ export const listPublicProductsHandler = async (req: Request, res: Response, nex
       typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
         ? Number.parseInt(req.query.limit, 10)
         : undefined;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : undefined;
 
-    const products = await listPublishedProducts({ search, limit });
-    res.json({ products });
+    const result = await listPublishedProducts({ search, limit, skip });
+    res.json(result);
   } catch (error) {
     next(error);
   }

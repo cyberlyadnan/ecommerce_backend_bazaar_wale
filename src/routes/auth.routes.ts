@@ -29,7 +29,7 @@ router.post(
     body('name').isString().trim().notEmpty(),
     body('email').optional().isEmail(),
     body('phone').optional().isMobilePhone('any'),
-    body('password').optional().isLength({ min: 6 }),
+    body('password').optional().isLength({ min: 8 }),
   ],
   validateRequest,
   registerCustomerHandler,
@@ -62,9 +62,9 @@ router.post(
         if (!value || typeof value !== 'string' || value.trim().length === 0) {
           throw new Error('Password is required when creating a new account');
         }
-        // Password must be at least 6 characters
-        if (value.length < 6) {
-          throw new Error('Password must be at least 6 characters long');
+        // Password must be at least 8 characters
+        if (value.length < 8) {
+          throw new Error('Password must be at least 8 characters long');
         }
         return true;
       })
@@ -146,7 +146,7 @@ router.post(
   [
     body('email').isEmail(),
     body('token').isString().notEmpty(),
-    body('password').isLength({ min: 6 }),
+    body('password').isLength({ min: 8 }),
   ],
   validateRequest,
   resetPasswordHandler,
@@ -156,7 +156,7 @@ router.post(
   '/password/reset/phone',
   [
     body('firebaseToken').isString().notEmpty(),
-    body('password').isLength({ min: 6 }),
+    body('password').isLength({ min: 8 }),
   ],
   validateRequest,
   resetPasswordWithFirebaseHandler,
@@ -167,7 +167,7 @@ router.post(
   authenticate(),
   [
     body('currentPassword').isString().notEmpty(),
-    body('newPassword').isLength({ min: 6 }),
+    body('newPassword').isLength({ min: 8 }),
   ],
   validateRequest,
   changePasswordHandler,

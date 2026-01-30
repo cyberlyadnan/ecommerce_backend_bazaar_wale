@@ -18,12 +18,17 @@ export const listVendorsHandler = async (req: Request, res: Response, next: Next
         : 'all';
 
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const limit =
+      typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
+        ? Number.parseInt(req.query.limit, 10)
+        : 20;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
 
-    const vendors = await listVendors({
-      status,
-      search,
-    });
-    res.json({ vendors });
+    const result = await listVendors({ status, search, limit, skip });
+    res.json(result);
   } catch (error) {
     next(error);
   }

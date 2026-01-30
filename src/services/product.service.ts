@@ -280,6 +280,7 @@ interface ListProductsOptions {
   scope?: 'all' | 'mine';
   adminId?: string;
   limit?: number;
+  skip?: number;
   publishedOnly?: boolean;
 }
 
@@ -310,7 +311,8 @@ export const listProducts = async ({
   search,
   scope = 'all',
   adminId,
-  limit = 200,
+  limit = 20,
+  skip = 0,
   publishedOnly = false,
 }: ListProductsOptions = {}) => {
   const query: mongoose.FilterQuery<typeof Product> = {};
@@ -351,17 +353,22 @@ export const listProducts = async ({
     query.$or = orConditions;
   }
 
-  const limitValue = Math.min(Math.max(Number(limit) || 200, 1), 200);
+  const limitValue = Math.min(Math.max(Number(limit) || 20, 1), 200);
+  const skipValue = Math.max(Number(skip) || 0, 0);
 
-  const products = await Product.find(query)
-    .sort({ createdAt: -1 })
-    .limit(limitValue)
-    .populate('category')
-    .populate('subcategory')
-    .populate({ path: 'vendor', select: 'name email phone businessName gstNumber' })
-    .lean();
+  const [products, total] = await Promise.all([
+    Product.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skipValue)
+      .limit(limitValue)
+      .populate('category')
+      .populate('subcategory')
+      .populate({ path: 'vendor', select: 'name email phone businessName gstNumber' })
+      .lean(),
+    Product.countDocuments(query),
+  ]);
 
-  return products.map(mapProduct);
+  return { products: products.map(mapProduct), total };
 };
 
 export const getProductBySlugPublic = async (slug: string) => {
@@ -385,13 +392,20 @@ export const getProductBySlugPublic = async (slug: string) => {
   return mapProduct(product);
 };
 
-export const listPublishedProducts = async ({ search, limit }: { search?: string; limit?: number } = {}) =>
-  listProducts({
+export const listPublishedProducts = async ({
+  search,
+  limit,
+  skip,
+}: { search?: string; limit?: number; skip?: number } = {}) => {
+  const result = await listProducts({
     search,
     limit,
+    skip,
     scope: 'all',
     publishedOnly: true,
   });
+  return result;
+};
 
 export const deleteProduct = async (productId: string, userId: string, userRole: string) => {
   if (!mongoose.Types.ObjectId.isValid(productId)) {

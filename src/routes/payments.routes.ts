@@ -32,6 +32,8 @@ router.get(
     query('status').optional().isIn(['all', 'pending', 'processing', 'paid', 'rejected']),
     query('vendorId').optional().isString(),
     query('search').optional().isString(),
+    query('limit').optional().isInt({ min: 1, max: 200 }),
+    query('skip').optional().isInt({ min: 0 }),
   ],
   validateRequest,
   adminListPayoutsHandler,
@@ -77,7 +79,11 @@ router.get('/vendor/summary', authenticate(['vendor']), vendorSummaryHandler);
 router.get(
   '/vendor/payouts',
   authenticate(['vendor']),
-  [query('status').optional().isIn(['all', 'pending', 'processing', 'paid', 'rejected'])],
+  [
+    query('status').optional().isIn(['all', 'pending', 'processing', 'paid', 'rejected']),
+    query('limit').optional().isInt({ min: 1, max: 200 }),
+    query('skip').optional().isInt({ min: 0 }),
+  ],
   validateRequest,
   vendorListPayoutsHandler,
 );

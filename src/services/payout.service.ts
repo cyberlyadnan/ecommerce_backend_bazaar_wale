@@ -17,6 +17,8 @@ export async function adminListPayouts(options?: {
   status?: PayoutStatus | 'all';
   vendorId?: string;
   search?: string;
+  limit?: number;
+  skip?: number;
 }) {
   const query: any = {};
 
@@ -28,7 +30,10 @@ export async function adminListPayouts(options?: {
     query.vendorId = new mongoose.Types.ObjectId(options.vendorId);
   }
 
-  const payouts = await Payout.find(query)
+  const limit = Math.min(Math.max(Number(options?.limit) || 20, 1), 200);
+  const skip = Math.max(Number(options?.skip) || 0, 0);
+
+  let payouts = await Payout.find(query)
     .populate('vendorId', 'name businessName email phone')
     .sort({ createdAt: -1 })
     .lean();
@@ -36,14 +41,16 @@ export async function adminListPayouts(options?: {
   // simple client-side search on vendor/order reference
   const term = options?.search?.trim().toLowerCase();
   if (term) {
-    return payouts.filter((p: any) => {
+    payouts = payouts.filter((p: any) => {
       const vendorName = (p.vendorId?.businessName || p.vendorId?.name || '').toLowerCase();
       const ref = (p.paymentReference || '').toLowerCase();
       return vendorName.includes(term) || ref.includes(term);
     });
   }
 
-  return payouts;
+  const total = payouts.length;
+  const paginated = payouts.slice(skip, skip + limit);
+  return { payouts: paginated, total };
 }
 
 export async function adminCreatePayout(input: {
@@ -160,11 +167,23 @@ export async function adminUpdatePayout(payoutId: string, patch: {
   return updated;
 }
 
-export async function vendorListPayouts(vendorId: string, status?: PayoutStatus | 'all') {
+export async function vendorListPayouts(
+  vendorId: string,
+  status?: PayoutStatus | 'all',
+  options?: { limit?: number; skip?: number },
+) {
   const query: any = { vendorId: new mongoose.Types.ObjectId(vendorId) };
   if (status && status !== 'all') query.status = status;
 
-  return Payout.find(query).sort({ createdAt: -1 }).lean();
+  const limit = Math.min(Math.max(Number(options?.limit) || 20, 1), 200);
+  const skip = Math.max(Number(options?.skip) || 0, 0);
+
+  const [payouts, total] = await Promise.all([
+    Payout.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Payout.countDocuments(query),
+  ]);
+
+  return { payouts, total };
 }
 
 export async function vendorPaymentsSummary(vendorId: string) {

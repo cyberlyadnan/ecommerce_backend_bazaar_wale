@@ -37,14 +37,24 @@ export const adminListPayoutsHandler = async (req: Request, res: Response, next:
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const vendorId = typeof req.query.vendorId === 'string' ? req.query.vendorId : undefined;
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const limit =
+      typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
+        ? Number.parseInt(req.query.limit, 10)
+        : 20;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
 
-    const payouts = await payoutService.adminListPayouts({
+    const result = await payoutService.adminListPayouts({
       status: (status as any) || 'all',
       vendorId,
       search,
+      limit,
+      skip,
     });
 
-    res.json({ success: true, payouts });
+    res.json({ success: true, ...result });
   } catch (e) {
     next(e);
   }
@@ -92,8 +102,20 @@ export const vendorListPayoutsHandler = async (req: Request, res: Response, next
   try {
     if (!req.user || req.user.role !== 'vendor') throw new ApiError(403, 'Vendor access required');
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-    const payouts = await payoutService.vendorListPayouts(req.user._id.toString(), (status as any) || 'all');
-    res.json({ success: true, payouts });
+    const limit =
+      typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
+        ? Number.parseInt(req.query.limit, 10)
+        : 20;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
+    const result = await payoutService.vendorListPayouts(
+      req.user._id.toString(),
+      (status as any) || 'all',
+      { limit, skip },
+    );
+    res.json({ success: true, ...result });
   } catch (e) {
     next(e);
   }

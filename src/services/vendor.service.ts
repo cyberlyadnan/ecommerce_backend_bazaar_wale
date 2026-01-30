@@ -9,9 +9,10 @@ interface ListVendorsOptions {
   status?: VendorStatus | 'all';
   search?: string;
   limit?: number;
+  skip?: number;
 }
 
-export const listVendors = async ({ status = 'all', search, limit = 100 }: ListVendorsOptions = {}) => {
+export const listVendors = async ({ status = 'all', search, limit = 20, skip = 0 }: ListVendorsOptions = {}) => {
   // Include users who are vendors OR have a vendorStatus (pending applications from customers)
   const baseConditions: mongoose.FilterQuery<typeof User>[] = [
     {
@@ -45,13 +46,20 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
   const query: mongoose.FilterQuery<typeof User> =
     baseConditions.length > 0 ? { $and: baseConditions } : {};
 
-  const vendors = await User.find(query)
-    .sort({ createdAt: -1 })
-    .limit(limit)
+  const limitVal = Math.min(Math.max(Number(limit) || 20, 1), 200);
+  const skipVal = Math.max(Number(skip) || 0, 0);
+
+  const [vendors, total] = await Promise.all([
+    User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skipVal)
+      .limit(limitVal)
     .select(
       'name email phone businessName gstNumber aadharNumber panNumber vendorStatus createdAt updatedAt businessAddress meta',
     )
-    .lean();
+    .lean(),
+    User.countDocuments(query),
+  ]);
 
   const ids = vendors.map((v: any) => v._id);
   const verifications = await VendorVerification.find({ userId: { $in: ids } })
@@ -80,7 +88,7 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
     }));
   };
 
-  return vendors.map((vendor: any) => {
+  const vendorList = vendors.map((vendor: any) => {
     const verification = verificationMap.get(vendor._id.toString());
     return {
       ...vendor,
@@ -97,6 +105,8 @@ export const listVendors = async ({ status = 'all', search, limit = 100 }: ListV
         : null,
     };
   });
+
+  return { vendors: vendorList, total };
 };
 
 export const approveVendorByAdmin = async (vendorId: string, adminId: string) => {

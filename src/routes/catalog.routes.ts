@@ -116,6 +116,7 @@ router.get(
     query('search').optional().isString().trim().isLength({ min: 1, max: 120 }).withMessage('Search must be a string'),
     query('scope').optional().isIn(['all', 'mine']),
     query('limit').optional().isInt({ min: 1, max: 200 }),
+    query('skip').optional().isInt({ min: 0 }),
   ],
   validateRequest,
   listProductsHandler,
@@ -133,6 +134,7 @@ router.get(
   [
     query('search').optional().isString().trim().isLength({ min: 1, max: 120 }),
     query('limit').optional().isInt({ min: 1, max: 200 }),
+    query('skip').optional().isInt({ min: 0 }),
   ],
   validateRequest,
   listPublicProductsHandler,
@@ -235,6 +237,8 @@ router.get(
   [
     query('status').optional().isIn(['all', 'pending', 'active', 'rejected', 'suspended']),
     query('search').optional().isString().trim().isLength({ min: 1, max: 120 }),
+    query('limit').optional().isInt({ min: 1, max: 200 }),
+    query('skip').optional().isInt({ min: 0 }),
   ],
   validateRequest,
   listVendorsHandler,

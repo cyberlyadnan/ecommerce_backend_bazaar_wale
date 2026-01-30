@@ -314,11 +314,23 @@ export const getVendorOrdersHandler = async (
       throw new ApiError(403, 'Vendor access required');
     }
 
-    const orders = await orderService.getVendorOrders(req.user._id.toString());
+    const limit =
+      typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
+        ? Number.parseInt(req.query.limit, 10)
+        : 20;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
+
+    const result = await orderService.getVendorOrders(req.user._id.toString(), {
+      limit,
+      skip,
+    });
 
     res.json({
       success: true,
-      orders,
+      ...result,
     });
   } catch (error) {
     next(error);
@@ -343,12 +355,23 @@ export const getAdminOrdersHandler = async (
     const statusFilter =
       typeof req.query.status === 'string' ? req.query.status : undefined;
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const limit =
+      typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
+        ? Number.parseInt(req.query.limit, 10)
+        : 20;
+    const skip =
+      typeof req.query.skip === 'string' && !Number.isNaN(Number.parseInt(req.query.skip, 10))
+        ? Number.parseInt(req.query.skip, 10)
+        : 0;
 
-    const orders = await orderService.getAdminOrders(filter, statusFilter, search);
+    const result = await orderService.getAdminOrders(filter, statusFilter, search, {
+      limit,
+      skip,
+    });
 
     res.json({
       success: true,
-      orders,
+      ...result,
     });
   } catch (error) {
     next(error);

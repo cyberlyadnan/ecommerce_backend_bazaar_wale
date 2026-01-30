@@ -456,14 +456,22 @@ export const getOrderById = async (orderId: string, userId: string) => {
 /**
  * Get vendor orders (without customer details)
  */
-export const getVendorOrders = async (vendorId: string) => {
-  // Find all orders that contain items from this vendor
-  const orders = await Order.find({
+export const getVendorOrders = async (
+  vendorId: string,
+  options?: { limit?: number; skip?: number },
+) => {
+  const limit = Math.min(Math.max(Number(options?.limit) || 20, 1), 200);
+  const skip = Math.max(Number(options?.skip) || 0, 0);
+
+  const baseQuery = {
     'items.vendorId': new mongoose.Types.ObjectId(vendorId),
     isDeleted: false,
-  })
-    .sort({ createdAt: -1 })
-    .lean();
+  };
+
+  const [orders, total] = await Promise.all([
+    Order.find(baseQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Order.countDocuments(baseQuery),
+  ]);
 
   // Filter and format orders to only include vendor's items
   const vendorOrders = orders.map((order) => {
@@ -500,7 +508,7 @@ export const getVendorOrders = async (vendorId: string) => {
     };
   }).filter(Boolean);
 
-  return vendorOrders;
+  return { orders: vendorOrders, total };
 };
 
 /**
@@ -510,6 +518,7 @@ export const getAdminOrders = async (
   filter?: 'all' | 'admin_only',
   statusFilter?: string,
   search?: string,
+  options?: { limit?: number; skip?: number },
 ) => {
   let query: mongoose.FilterQuery<typeof Order> = {
     isDeleted: false,
@@ -592,10 +601,18 @@ export const getAdminOrders = async (
     }
   }
 
-  const orders = await Order.find(query)
-    .populate('userId', 'name email phone')
-    .sort({ createdAt: -1 })
-    .lean();
+  const limit = Math.min(Math.max(Number(options?.limit) || 20, 1), 200);
+  const skip = Math.max(Number(options?.skip) || 0, 0);
+
+  const [orders, total] = await Promise.all([
+    Order.find(query)
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Order.countDocuments(query),
+  ]);
 
   // Get unique vendor IDs from all orders
   const allVendorIds = new Set<string>();
@@ -616,7 +633,7 @@ export const getAdminOrders = async (
     vendors.map((vendor: any) => [vendor._id.toString(), vendor]),
   );
 
-  return orders.map((order: any) => {
+  const mapped = orders.map((order: any) => {
     // Get unique vendors for this order
     const orderVendorIds = [
       ...new Set(order.items.map((item: any) => item.vendorId.toString())),
@@ -651,6 +668,8 @@ export const getAdminOrders = async (
       })),
     };
   });
+
+  return { orders: mapped, total };
 };
 
 /**
