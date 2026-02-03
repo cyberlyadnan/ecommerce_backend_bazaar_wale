@@ -282,6 +282,8 @@ interface ListProductsOptions {
   limit?: number;
   skip?: number;
   publishedOnly?: boolean;
+  categorySlug?: string;
+  featured?: boolean;
 }
 
 const mapProduct = (product: any) => ({
@@ -314,6 +316,8 @@ export const listProducts = async ({
   limit = 20,
   skip = 0,
   publishedOnly = false,
+  categorySlug,
+  featured,
 }: ListProductsOptions = {}) => {
   const query: mongoose.FilterQuery<typeof Product> = {};
 
@@ -323,6 +327,25 @@ export const listProducts = async ({
 
   if (publishedOnly) {
     query.isActive = true;
+  }
+
+  if (featured) {
+    query.featured = true;
+  }
+
+  const andConditions: mongoose.FilterQuery<typeof Product>[] = [];
+
+  if (categorySlug && categorySlug.trim()) {
+    const Category = (await import('../models/Category.model')).default;
+    const category = await Category.findOne({ slug: categorySlug.trim(), isActive: true }).select('_id').lean();
+    if (category) {
+      andConditions.push({
+        $or: [
+          { category: category._id },
+          { subcategory: category._id },
+        ],
+      });
+    }
   }
 
   if (search && search.trim().length > 0) {
@@ -350,7 +373,11 @@ export const listProducts = async ({
       orConditions.push({ vendor: { $in: vendorIds } });
     }
 
-    query.$or = orConditions;
+    andConditions.push({ $or: orConditions });
+  }
+
+  if (andConditions.length > 0) {
+    query.$and = andConditions;
   }
 
   const limitValue = Math.min(Math.max(Number(limit) || 20, 1), 200);
@@ -396,13 +423,17 @@ export const listPublishedProducts = async ({
   search,
   limit,
   skip,
-}: { search?: string; limit?: number; skip?: number } = {}) => {
+  categorySlug,
+  featured,
+}: { search?: string; limit?: number; skip?: number; categorySlug?: string; featured?: boolean } = {}) => {
   const result = await listProducts({
     search,
     limit,
     skip,
     scope: 'all',
     publishedOnly: true,
+    categorySlug,
+    featured,
   });
   return result;
 };

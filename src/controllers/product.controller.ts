@@ -149,6 +149,8 @@ export const getProductBySlugHandler = async (req: Request, res: Response, next:
 export const listPublicProductsHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const categorySlug = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const featured = req.query.featured === 'true';
     const limit =
       typeof req.query.limit === 'string' && !Number.isNaN(Number.parseInt(req.query.limit, 10))
         ? Number.parseInt(req.query.limit, 10)
@@ -158,7 +160,7 @@ export const listPublicProductsHandler = async (req: Request, res: Response, nex
         ? Number.parseInt(req.query.skip, 10)
         : undefined;
 
-    const result = await listPublishedProducts({ search, limit, skip });
+    const result = await listPublishedProducts({ search, limit, skip, categorySlug, featured });
     res.json(result);
   } catch (error) {
     next(error);

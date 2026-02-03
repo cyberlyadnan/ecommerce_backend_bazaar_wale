@@ -133,6 +133,8 @@ router.get(
   '/products/public',
   [
     query('search').optional().isString().trim().isLength({ min: 1, max: 120 }),
+    query('category').optional().isString().trim().isLength({ min: 1, max: 120 }),
+    query('featured').optional().isIn(['true', 'false']),
     query('limit').optional().isInt({ min: 1, max: 200 }),
     query('skip').optional().isInt({ min: 0 }),
   ],
