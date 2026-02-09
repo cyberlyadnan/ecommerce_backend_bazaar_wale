@@ -26,7 +26,12 @@ import validateRequest from '../middlewares/validation.middleware';
 
 const router = Router();
 
-router.get('/categories', listCategoriesHandler);
+router.get(
+  '/categories',
+  [query('activeOnly').optional().isIn(['true', 'false'])],
+  validateRequest,
+  listCategoriesHandler,
+);
 
 router.post(
   '/categories',

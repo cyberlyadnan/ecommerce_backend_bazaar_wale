@@ -5,6 +5,9 @@ import Product from '../models/Product.model';
 import ApiError from '../utils/apiError';
 import slugify from '../utils/slugify';
 
+/** Slug for the fallback category used when a category is deleted or product has none */
+export const DEFAULT_CATEGORY_SLUG = 'uncategorized';
+
 interface CategoryInput {
   name: string;
   slug?: string;
@@ -119,8 +122,42 @@ export const updateCategory = async (categoryId: string, input: Partial<Category
   return category.toObject();
 };
 
-export const listCategories = async () => {
-  const categories = await Category.find().sort({ name: 1 }).lean();
+/** Get or create the default "Uncategorized" category (used when a category is deleted or product has no category). */
+export const getOrCreateDefaultCategory = async () => {
+  let category = await Category.findOne({ slug: DEFAULT_CATEGORY_SLUG }).lean();
+  if (category) {
+    return category._id.toString();
+  }
+  const slug = await resolveSlug('Uncategorized', DEFAULT_CATEGORY_SLUG);
+  const created = await Category.create({
+    name: 'Uncategorized',
+    slug,
+    description: 'Products without a specific category',
+    parent: null,
+    isActive: true,
+  });
+  // Create a default subcategory so products can satisfy "category + subcategory" requirement
+  await Category.create({
+    name: 'General',
+    slug: await resolveSlug('General', 'uncategorized-general'),
+    description: 'Default subcategory for uncategorized products',
+    parent: created._id,
+    isActive: true,
+  });
+  return created._id.toString();
+};
+
+export interface ListCategoriesOptions {
+  /** If true, only return categories with isActive: true (for public/customer-facing). */
+  activeOnly?: boolean;
+}
+
+export const listCategories = async (options?: ListCategoriesOptions) => {
+  const filter: FilterQuery<typeof Category> = {};
+  if (options?.activeOnly === true) {
+    filter.isActive = true;
+  }
+  const categories = await Category.find(filter).sort({ name: 1 }).lean();
 
   const treeMap = new Map<string, CategoryNode>();
 
@@ -178,22 +215,38 @@ export const deleteCategory = async (categoryId: string) => {
     throw new ApiError(404, 'Category not found');
   }
 
-  // Check if category has children (subcategories)
-  const hasChildren = await Category.exists({ parent: categoryId });
-  if (hasChildren) {
-    throw new ApiError(400, 'Cannot delete category with subcategories. Please delete or move subcategories first.');
+  // Do not allow deleting the default category
+  if (category.slug === DEFAULT_CATEGORY_SLUG) {
+    throw new ApiError(400, 'Cannot delete the default Uncategorized category.');
   }
 
-  // Check if category is used by any products
-  const productsUsingCategory = await Product.exists({
-    $or: [{ category: categoryId }, { subcategory: categoryId }],
-  });
-  if (productsUsingCategory) {
-    throw new ApiError(400, 'Cannot delete category that is assigned to products. Please reassign products first.');
+  const defaultCategoryId = await getOrCreateDefaultCategory();
+  const defaultSub = await Category.findOne({ parent: defaultCategoryId }).lean();
+  const defaultSubcategoryId = defaultSub?._id ?? null;
+
+  const setToDefault = defaultSubcategoryId
+    ? { category: new mongoose.Types.ObjectId(defaultCategoryId), subcategory: defaultSubcategoryId }
+    : { category: new mongoose.Types.ObjectId(defaultCategoryId), subcategory: null };
+
+  // 1. Reassign all products that use this category (or its subcategories) to default category
+  await Product.updateMany(
+    { $or: [{ category: categoryId }, { subcategory: categoryId }] },
+    { $set: setToDefault },
+  );
+
+  // 2. Delete subcategories first (and reassign any products in them to default)
+  const children = await Category.find({ parent: categoryId }).lean();
+  for (const child of children) {
+    await Product.updateMany(
+      { $or: [{ category: child._id }, { subcategory: child._id }] },
+      { $set: setToDefault },
+    );
+    await Category.findByIdAndDelete(child._id);
   }
 
+  // 3. Delete the category
   await Category.findByIdAndDelete(categoryId);
-  return { message: 'Category deleted successfully' };
+  return { message: 'Category deleted successfully. Products using it were moved to Uncategorized.' };
 };
 
 

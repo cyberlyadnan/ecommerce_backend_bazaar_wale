@@ -52,6 +52,7 @@ const ProductSchema = new mongoose.Schema({
 
   // analytics
   totalSold: { type: Number, default: 0 },
+  viewCount: { type: Number, default: 0, index: true },
 
   tags: { type: [String], default: [] },
   tagsText: { type: String, default: '' },

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import Order from '../models/Order.model';
 import Product from '../models/Product.model';
-import ApiError from '../utils/apiError';
+import Payout from '../models/Payout.model';
 
 /**
  * Get vendor dashboard statistics
@@ -90,6 +90,22 @@ export const getVendorDashboardStats = async (vendorId: string) => {
         new Date().getTime() - 24 * 60 * 60 * 1000, // More than 24 hours old
   ).length;
 
+  const payoutAgg = await Payout.aggregate([
+    { $match: { vendorId: vendorObjectId } },
+    {
+      $group: {
+        _id: '$status',
+        total: { $sum: '$netAmount' },
+        count: { $sum: 1 },
+      },
+    },
+  ]).catch(() => []);
+
+  const pendingPayout = payoutAgg.find((p: any) => p._id === 'pending') || { total: 0, count: 0 };
+  const processingPayout = payoutAgg.find((p: any) => p._id === 'processing') || { total: 0, count: 0 };
+  const paidPayout = payoutAgg.find((p: any) => p._id === 'paid') || { total: 0, count: 0 };
+  const nextPayoutAmount = (pendingPayout.total || 0) + (processingPayout.total || 0);
+
   return {
     revenue: {
       total: totalRevenue,
@@ -110,6 +126,13 @@ export const getVendorDashboardStats = async (vendorId: string) => {
       packedReady,
       awaitingPickup,
       delayedDispatch,
+    },
+    payouts: {
+      nextPayoutFormatted: formatCurrency(nextPayoutAmount),
+      nextPayoutAmount,
+      pendingCount: (pendingPayout.count || 0) + (processingPayout.count || 0),
+      paidTotalFormatted: formatCurrency(paidPayout.total || 0),
+      paidTotal: paidPayout.total || 0,
     },
   };
 };

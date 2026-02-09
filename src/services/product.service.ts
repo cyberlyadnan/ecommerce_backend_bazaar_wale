@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 import Product from '../models/Product.model';
 import User from '../models/User.model';
+import Category from '../models/Category.model';
+import { getOrCreateDefaultCategory } from './category.service';
 import ApiError from '../utils/apiError';
 import slugify from '../utils/slugify';
 
@@ -92,11 +94,43 @@ const normalisePricing = (pricing?: PricingTierInput[]) =>
       pricePerUnit: Number(tier.pricePerUnit),
     }));
 
+/** Resolve category and subcategory IDs: require both; if category/subcategory no longer exist, use default category and null subcategory. */
+const resolveCategoryAndSubcategory = async (
+  categoryId: string | null | undefined,
+  subcategoryId: string | null | undefined,
+): Promise<{ categoryId: string; subcategoryId: string | null }> => {
+  const defaultId = await getOrCreateDefaultCategory();
+  if (!categoryId || !categoryId.trim()) {
+    return { categoryId: defaultId, subcategoryId: null };
+  }
+  const categoryExists = await Category.findById(categoryId);
+  if (!categoryExists) {
+    return { categoryId: defaultId, subcategoryId: null };
+  }
+  let resolvedSub: string | null = null;
+  if (subcategoryId && subcategoryId.trim()) {
+    const subExists = await Category.findOne({ _id: subcategoryId, parent: categoryId });
+    if (subExists) {
+      resolvedSub = subcategoryId;
+    }
+  }
+  return { categoryId, subcategoryId: resolvedSub };
+};
+
 export const createProduct = async (input: ProductInput) => {
   const vendor = await User.findById(input.vendorId);
   if (!vendor || (vendor.role !== 'vendor' && vendor.role !== 'admin')) {
     throw new ApiError(400, 'Vendor not found or invalid vendor');
   }
+
+  if (!input.category || !input.category.trim()) {
+    throw new ApiError(400, 'Category is required. Please select a category.');
+  }
+  if (!input.subcategory || !input.subcategory.trim()) {
+    throw new ApiError(400, 'Subcategory is required. Please select a subcategory.');
+  }
+
+  const { categoryId, subcategoryId } = await resolveCategoryAndSubcategory(input.category, input.subcategory);
 
   const slug = await resolveProductSlug(input.title, input.slug);
 
@@ -115,8 +149,8 @@ export const createProduct = async (input: ProductInput) => {
     sku: input.sku?.trim(),
     description: input.description?.trim(),
     shortDescription: input.shortDescription?.trim(),
-    category: input.category ? new mongoose.Types.ObjectId(input.category) : undefined,
-    subcategory: input.subcategory ? new mongoose.Types.ObjectId(input.subcategory) : undefined,
+    category: new mongoose.Types.ObjectId(categoryId),
+    subcategory: subcategoryId ? new mongoose.Types.ObjectId(subcategoryId) : undefined,
     images: normaliseImages(input.images),
     attributes: input.attributes ?? {},
     stock: typeof input.stock === 'number' ? input.stock : 0,
@@ -142,6 +176,27 @@ export const updateProduct = async (productId: string, input: ProductUpdateInput
   const product = await Product.findById(productId);
   if (!product) {
     throw new ApiError(404, 'Product not found');
+  }
+
+  // Fix orphaned category/subcategory: if category was deleted, set to default
+  const currentCategoryId = product.category?.toString();
+  const currentSubcategoryId = product.subcategory?.toString();
+  if (currentCategoryId) {
+    const catExists = await Category.findById(currentCategoryId);
+    if (!catExists) {
+      const defaultId = await getOrCreateDefaultCategory();
+      product.category = new mongoose.Types.ObjectId(defaultId);
+      product.subcategory = undefined;
+    } else if (currentSubcategoryId) {
+      const subExists = await Category.findOne({ _id: currentSubcategoryId, parent: currentCategoryId });
+      if (!subExists) {
+        product.subcategory = undefined;
+      }
+    }
+  } else {
+    const defaultId = await getOrCreateDefaultCategory();
+    product.category = new mongoose.Types.ObjectId(defaultId);
+    product.subcategory = undefined;
   }
 
   // Check if this is a vendor product (for auto-approval)
@@ -176,11 +231,21 @@ export const updateProduct = async (productId: string, input: ProductUpdateInput
   if (typeof input.shortDescription !== 'undefined') {
     product.shortDescription = input.shortDescription?.trim();
   }
-  if (typeof input.category !== 'undefined') {
-    product.category = input.category ? new mongoose.Types.ObjectId(input.category) : undefined;
-  }
-  if (typeof input.subcategory !== 'undefined') {
-    product.subcategory = input.subcategory ? new mongoose.Types.ObjectId(input.subcategory) : undefined;
+  if (typeof input.category !== 'undefined' || typeof input.subcategory !== 'undefined') {
+    const categoryId = input.category ?? product.category?.toString();
+    const subcategoryId = input.subcategory ?? product.subcategory?.toString();
+    if (!categoryId || !categoryId.trim()) {
+      const defaultId = await getOrCreateDefaultCategory();
+      product.category = new mongoose.Types.ObjectId(defaultId);
+      product.subcategory = undefined;
+    } else {
+      const { categoryId: resolvedCatId, subcategoryId: resolvedSubId } = await resolveCategoryAndSubcategory(
+        categoryId,
+        subcategoryId,
+      );
+      product.category = new mongoose.Types.ObjectId(resolvedCatId);
+      product.subcategory = resolvedSubId ? new mongoose.Types.ObjectId(resolvedSubId) : undefined;
+    }
   }
   if (typeof input.stock === 'number') {
     product.stock = input.stock;

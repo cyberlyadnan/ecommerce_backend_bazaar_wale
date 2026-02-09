@@ -20,9 +20,10 @@ export const updateCategoryHandler = async (req: Request, res: Response, next: N
   }
 };
 
-export const listCategoriesHandler = async (_req: Request, res: Response, next: NextFunction) => {
+export const listCategoriesHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await listCategories();
+    const activeOnly = req.query.activeOnly === 'true';
+    const data = await listCategories({ activeOnly });
     res.json(data);
   } catch (error) {
     next(error);
