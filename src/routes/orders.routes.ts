@@ -9,6 +9,8 @@ import {
   getVendorOrdersHandler,
   getAdminOrdersHandler,
   getAdminOrderByIdHandler,
+  getOrderInvoicePdfHandler,
+  getOrderDeliveryLabelPdfHandler,
   updateOrderStatusHandler,
   updateExpectedDeliveryDateHandler,
   validateExpectedDeliveryDate,
@@ -59,6 +61,8 @@ router.put(
   updateAdminShippingConfigHandler,
 );
 
+router.get('/admin/:orderId/invoice', authenticate(), getOrderInvoicePdfHandler);
+router.get('/admin/:orderId/delivery-label', authenticate(), getOrderDeliveryLabelPdfHandler);
 router.get('/admin/:orderId', authenticate(), getAdminOrderByIdHandler);
 
 // Get order by ID (must come after specific routes)

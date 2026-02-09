@@ -3,6 +3,8 @@ import { body, validationResult } from 'express-validator';
 
 import * as orderService from '../services/order.service';
 import ApiError from '../utils/apiError';
+import { buildInvoicePdf } from '../utils/pdfInvoice';
+import { buildDeliveryLabelPdf } from '../utils/pdfDeliveryLabel';
 
 /**
  * Calculate order totals (pre-checkout)
@@ -399,6 +401,77 @@ export const getAdminOrderByIdHandler = async (
       success: true,
       order,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Download order invoice PDF (admin only)
+ * GET /api/orders/admin/:orderId/invoice
+ */
+export const getOrderInvoicePdfHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(403, 'Admin access required');
+    }
+    const { orderId } = req.params;
+    const order = await orderService.getAdminOrderById(orderId);
+    if (!order.shippingAddress) {
+      throw new ApiError(400, 'Order has no shipping address');
+    }
+    const pdf = await buildInvoicePdf({
+      orderNumber: order.orderNumber,
+      placedAt: order.placedAt,
+      items: order.items,
+      subtotal: order.subtotal,
+      shippingCost: order.shippingCost,
+      tax: order.tax,
+      total: order.total,
+      paymentStatus: order.paymentStatus,
+      shippingAddress: order.shippingAddress as Parameters<typeof buildInvoicePdf>[0]['shippingAddress'],
+      customer: order.customer ?? null,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="invoice-${order.orderNumber}.pdf"`,
+    );
+    res.send(pdf);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Download delivery label PDF (admin only)
+ * GET /api/orders/admin/:orderId/delivery-label
+ */
+export const getOrderDeliveryLabelPdfHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      throw new ApiError(403, 'Admin access required');
+    }
+    const { orderId } = req.params;
+    const order = await orderService.getAdminOrderById(orderId);
+    if (!order.shippingAddress) {
+      throw new ApiError(400, 'Order has no shipping address');
+    }
+    const pdf = await buildDeliveryLabelPdf(order.orderNumber, order.shippingAddress as Parameters<typeof buildDeliveryLabelPdf>[1]);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="delivery-label-${order.orderNumber}.pdf"`,
+    );
+    res.send(pdf);
   } catch (error) {
     next(error);
   }
