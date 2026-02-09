@@ -7,6 +7,7 @@ import {
   adminCreatePayoutHandler,
   adminListPayoutsHandler,
   adminUpdatePayoutHandler,
+  getPayoutSlipPdfHandler,
   getCommissionHandler,
   updateCommissionHandler,
   vendorListPayoutsHandler,
@@ -56,6 +57,14 @@ router.post(
   ],
   validateRequest,
   adminCreatePayoutHandler,
+);
+
+router.get(
+  '/admin/payouts/:payoutId/slip',
+  authenticate(['admin']),
+  [param('payoutId').isMongoId()],
+  validateRequest,
+  getPayoutSlipPdfHandler,
 );
 
 router.patch(

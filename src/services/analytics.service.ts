@@ -64,10 +64,10 @@ export async function getAnalyticsOverview(periodDays: number = 30): Promise<Ana
 
   const [totalPageViews, uniqueVisitors, totalProductViews, visitorDays] = await Promise.all([
     AnalyticsEvent.countDocuments({ type: 'page_view', createdAt: { $gte: from, $lte: to } }),
-    AnalyticsEvent.distinct('visitorId', { type: { $in: ['page_view', 'product_view', 'session_start'] }, createdAt: { $gte: from, $lte: to }, visitorId: { $exists: true, $ne: null, $ne: '' } }),
+    AnalyticsEvent.distinct('visitorId', { type: { $in: ['page_view', 'product_view', 'session_start'] }, createdAt: { $gte: from, $lte: to }, visitorId: { $exists: true, $nin: [null, ''] } }),
     AnalyticsEvent.countDocuments({ type: 'product_view', createdAt: { $gte: from, $lte: to } }),
     AnalyticsEvent.aggregate([
-      { $match: { type: { $in: ['page_view', 'product_view'] }, createdAt: { $gte: from, $lte: to }, visitorId: { $exists: true, $ne: null, $ne: '' } } },
+      { $match: { type: { $in: ['page_view', 'product_view'] }, createdAt: { $gte: from, $lte: to }, visitorId: { $exists: true, $nin: [null, ''] } } },
       { $group: { _id: { visitorId: '$visitorId', day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } } },
       { $group: { _id: '$_id.visitorId', days: { $sum: 1 } } },
       { $match: { days: { $gt: 1 } } },
@@ -174,7 +174,7 @@ export async function getVisitsOverTime(days: number = 30): Promise<VisitsByDay[
         visitors: { $addToSet: '$visitorId' },
       },
     },
-    { $sort: { _id: 1 } },
+    { $sort: { _id: 1 as const } },
     {
       $project: {
         date: '$_id',

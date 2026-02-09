@@ -53,6 +53,70 @@ export async function adminListPayouts(options?: {
   return { payouts: paginated, total };
 }
 
+export async function adminGetPayoutById(payoutId: string) {
+  if (!mongoose.Types.ObjectId.isValid(payoutId)) {
+    throw new ApiError(400, 'Invalid payout id');
+  }
+  const payout = await Payout.findById(payoutId)
+    .populate('vendorId', 'name businessName email phone')
+    .lean();
+  if (!payout) {
+    throw new ApiError(404, 'Payout not found');
+  }
+  return payout;
+}
+
+/**
+ * When an order is marked as vendor_shipped_to_warehouse (received at admin warehouse),
+ * auto-create one pending payout per vendor in that order (for paid orders only).
+ * Skips if a payout for this order+vendor already exists.
+ */
+export async function createPayoutsForOrderShippedToWarehouse(orderId: string): Promise<void> {
+  if (!mongoose.Types.ObjectId.isValid(orderId)) return;
+
+  const order = await Order.findOne({
+    _id: new mongoose.Types.ObjectId(orderId),
+    isDeleted: false,
+    status: 'vendor_shipped_to_warehouse',
+    paymentStatus: 'paid',
+  }).lean();
+
+  if (!order || !(order as any).items?.length) return;
+
+  const orderObj = order as any;
+  const vendorIds = [...new Set(orderObj.items.map((it: any) => String(it.vendorId) as string))] as string[];
+
+  const defaultCommission = await getCommissionPercent();
+
+  for (const vid of vendorIds) {
+    const existing = await Payout.findOne({
+      vendorId: new mongoose.Types.ObjectId(vid),
+      ordersIncluded: new mongoose.Types.ObjectId(orderId),
+    });
+    if (existing) continue;
+
+    const vendorItems = orderObj.items.filter((it: any) => String(it.vendorId) === vid);
+    const gross = roundMoney(vendorItems.reduce((sum: number, it: any) => sum + (it.totalPrice || 0), 0));
+    if (gross <= 0) continue;
+
+    const commissionPercent = Math.min(100, Math.max(0, defaultCommission));
+    const commissionAmount = roundMoney((gross * commissionPercent) / 100);
+    const netAmount = Math.max(0, roundMoney(gross - commissionAmount));
+
+    await Payout.create({
+      vendorId: new mongoose.Types.ObjectId(vid),
+      grossAmount: gross,
+      commissionPercent,
+      commissionAmount,
+      netAmount,
+      amount: netAmount,
+      ordersIncluded: [new mongoose.Types.ObjectId(orderId)],
+      status: 'pending',
+      paymentMode: 'bank',
+    });
+  }
+}
+
 export async function adminCreatePayout(input: {
   vendorId: string;
   ordersIncluded?: string[];

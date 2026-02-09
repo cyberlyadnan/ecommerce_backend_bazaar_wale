@@ -19,7 +19,7 @@ export function buildDeliveryLabelPdf(orderNumber: string, shippingAddress: Ship
     // Label size: 4" x 6" (288 x 432 pt) - standard shipping label
     const doc = new PDFDocument({ size: [288, 432], margin: 24 });
     const chunks: Buffer[] = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 

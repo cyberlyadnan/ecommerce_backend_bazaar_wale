@@ -4,6 +4,7 @@ import { validationResult } from 'express-validator';
 import ApiError from '../utils/apiError';
 import { getCommissionPercent, setCommissionPercent } from '../services/commissionConfig.service';
 import * as payoutService from '../services/payout.service';
+import { buildPayoutSlipPdf } from '../utils/pdfPayoutSlip';
 
 // -------- Admin: Commission --------
 export const getCommissionHandler = async (req: Request, res: Response, next: NextFunction) => {
@@ -82,6 +83,25 @@ export const adminUpdatePayoutHandler = async (req: Request, res: Response, next
     const { payoutId } = req.params;
     const payout = await payoutService.adminUpdatePayout(payoutId, req.body, req.user._id.toString());
     res.json({ success: true, payout, message: 'Payout updated' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getPayoutSlipPdfHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin access required');
+    const { payoutId } = req.params;
+    const payout = await payoutService.adminGetPayoutById(payoutId);
+    const pdf = await buildPayoutSlipPdf(payout as any);
+    res.setHeader('Content-Type', 'application/pdf');
+    const vendorName = (payout as any).vendorId?.businessName || (payout as any).vendorId?.name || 'payout';
+    const safeName = String(vendorName).replace(/[^a-zA-Z0-9-_]/g, '-').substring(0, 40);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="payout-slip-${safeName}-${String((payout as any)._id)}.pdf"`,
+    );
+    res.send(pdf);
   } catch (e) {
     next(e);
   }

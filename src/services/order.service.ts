@@ -7,6 +7,7 @@ import User from '../models/User.model';
 import ApiError from '../utils/apiError';
 import * as razorpayService from './razorpay.service';
 import { getShippingConfigDto } from './shippingConfig.service';
+import { createPayoutsForOrderShippedToWarehouse } from './payout.service';
 
 export interface ShippingAddress {
   name: string;
@@ -808,6 +809,12 @@ export const updateOrderStatus = async (
 
   order.status = newStatus as any;
   await order.save();
+
+  if (newStatus === 'vendor_shipped_to_warehouse' && order.paymentStatus === 'paid') {
+    createPayoutsForOrderShippedToWarehouse(orderId).catch((err) => {
+      console.error('[createPayoutsForOrderShippedToWarehouse]', err);
+    });
+  }
 
   return order.toObject();
 };
